@@ -1,0 +1,3 @@
+[submodule "PrismataAI"]
+	path = PrismataAI
+	url = git://github.com/davechurchill/PrismataAI.git
