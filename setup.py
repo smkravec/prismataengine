@@ -1,3 +1,4 @@
+import setuptools
 from distutils.core import setup, Extension
 import os.path
 import sys
@@ -14,16 +15,47 @@ else :
     libraries=["boost_python3"]
     library_dirs=['/usr/local/lib']
 
-prismataengine = Extension('prismataengine', sources = ['Action.cpp', 'CardBuyable.cpp', 'CardBuyableData.cpp', 'Card.cpp', 'CardData.cpp', 'CardType.cpp', 'CardTypeData.cpp', 'CardTypeInfo.cpp', 'CardTypes.cpp', 'Common.cpp', 'Condition.cpp', 'CreateDescription.cpp', 'DestroyDescription.cpp', 'FileUtils.cpp', 'Game.cpp', 'GameState.cpp', 'GenericValue.cpp', 'JSONTools.cpp', 'Move.cpp', 'Player.cpp', 'PrismataAssert.cpp', 'Prismata.cpp', 'prismataengine/prismataengineboost.cpp', 'Resources.cpp', 'SacDescription.cpp', 'Script.cpp', 'ScriptEffect.cpp', 'Timer.cpp', ],
+include_dirs.extend(["PrismataAI/source", "PrismataAI/source/engine"])
+
+prismataengine = Extension('prismataengine',
+sources = ['PrismataAI/source/engine/Action.cpp',
+'PrismataAI/source/engine/CardBuyable.cpp',
+'PrismataAI/source/engine/CardBuyableData.cpp',
+'PrismataAI/source/engine/Card.cpp',
+'PrismataAI/source/engine/CardData.cpp',
+'PrismataAI/source/engine/CardType.cpp',
+'PrismataAI/source/engine/CardTypeData.cpp',
+'PrismataAI/source/engine/CardTypeInfo.cpp',
+'PrismataAI/source/engine/CardTypes.cpp',
+'PrismataAI/source/engine/Common.cpp',
+'PrismataAI/source/engine/Condition.cpp',
+'PrismataAI/source/engine/CreateDescription.cpp',
+'PrismataAI/source/engine/DestroyDescription.cpp',
+'PrismataAI/source/engine/FileUtils.cpp',
+'PrismataAI/source/engine/Game.cpp',
+'PrismataAI/source/engine/GameState.cpp',
+'PrismataAI/source/engine/GenericValue.cpp',
+'PrismataAI/source/engine/JSONTools.cpp',
+'PrismataAI/source/engine/Move.cpp',
+'PrismataAI/source/engine/Player.cpp',
+'PrismataAI/source/engine/PrismataAssert.cpp',
+'PrismataAI/source/engine/Prismata.cpp',
+'prismataengine/prismataengineboost.cpp',
+'PrismataAI/source/engine/Resources.cpp',
+'PrismataAI/source/engine/SacDescription.cpp',
+'PrismataAI/source/engine/Script.cpp',
+'PrismataAI/source/engine/ScriptEffect.cpp',
+'PrismataAI/source/engine/Timer.cpp',
+],
         library_dirs=library_dirs,
         libraries=libraries,
         include_dirs=include_dirs,
         depends=[])
 
-setup (name = 'prismataengine',
+setuptools.setup (name = 'prismataengine',
        version = '2.0',
        description = 'This package provides access to the GameState object and supporting methods from Prismata',
-       ext_modules = [prismataengine]
+       ext_modules = [prismataengine],
        author="Shauna Kravec",
        author_email="smkravec@celest.ai",
        long_description=long_description,
