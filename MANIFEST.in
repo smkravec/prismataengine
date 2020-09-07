@@ -1,1 +1,1 @@
-include PrismataAI/source/engine/*.h
+include PrismataAI/source/engine/*.h PrismataAI/source/engine/*.hpp
