@@ -53,7 +53,7 @@ sources = ['PrismataAI/source/engine/Action.cpp',
         depends=[])
 
 setuptools.setup (name = 'prismataengine',
-       version = '2.0.2',
+       version = '2.0.4',
        description = 'This package provides access to the GameState object and supporting methods from Prismata',
        ext_modules = [prismataengine],
        author="Shauna Kravec",
