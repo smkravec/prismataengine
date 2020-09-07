@@ -1,1 +1,3 @@
 include PrismataAI/source/engine/*.h PrismataAI/source/engine/*.hpp PrismataAI/source/rapidjson/* PrismataAI/source/rapidjson/error/* PrismataAI/source/rapidjson/msinttypes/* PrismataAI/source/rapidjson/internal/*
+include PrismataAI/bin/asset/config/cardLibrary.jso
+include README.md

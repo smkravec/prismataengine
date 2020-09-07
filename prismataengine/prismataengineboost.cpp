@@ -71,7 +71,7 @@ std::string actions_json(const std::vector<Prismata::Action>& v)
 	return ss.str();
 }
 
-BOOST_PYTHON_MODULE(prismataengine) {
+BOOST_PYTHON_MODULE(_prismataengine) {
 	boost::python::def("init", &Prismata::InitFromCardLibrary);
 	boost::python::enum_<Prismata::ActionID>("ActionType")
 		.value("USE_ABILITY", Prismata::ActionTypes::USE_ABILITY)
