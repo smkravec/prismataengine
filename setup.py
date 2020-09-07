@@ -63,7 +63,6 @@ setuptools.setup (name = 'prismataengine',
        url="https://github.com/smkravec/prismataengine",
        classifiers=[
            "Programming Language :: Python :: 3",
-           "License :: Creative Commons Attribution-NonCommercial-ShareAlike 2.5 Canada License",
            "Operating System :: OS Independent",
            ],
        python_requires='>=3.6',
