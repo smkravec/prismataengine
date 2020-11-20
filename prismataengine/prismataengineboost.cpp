@@ -1,5 +1,6 @@
 #include <boost/python.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+#include "rapidjson.h"
 #include "Action.h"
 #include "Card.h"
 #include "Common.h"
@@ -29,6 +30,13 @@ inline const char* actiontype_tostring(int v) {
 		case 13: return "NUM_TYPES";
 		default: return "NONE";
     }
+}
+
+rapidjson::Document parse_json_str(const std::string & json_str)
+{
+  rapidjson::Document document;
+  bool parsingFailed = document.Parse(json_str.c_str()).HasParseError();
+  return document;
 }
 
 std::string action_stringify(const Prismata::Action & v)
@@ -73,6 +81,7 @@ std::string actions_json(const std::vector<Prismata::Action>& v)
 
 BOOST_PYTHON_MODULE(_prismataengine) {
 	boost::python::def("init", &Prismata::InitFromCardLibrary);
+	boost::python::def("strToRapidJson", &parse_json_str);
 	boost::python::enum_<Prismata::ActionID>("ActionType")
 		.value("USE_ABILITY", Prismata::ActionTypes::USE_ABILITY)
 		.value("BUY", Prismata::ActionTypes::BUY)
