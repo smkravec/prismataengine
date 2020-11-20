@@ -7,9 +7,3 @@ if "PRISMATA_INIT_CARD_PATH" in environ:
 else:
     with resources.path(__name__, 'cardLibrary.jso') as path:
         init(str(path))
-
-def strToJson(string):
-    d = JsonDocument()
-    if strToRapidJson(string, d):
-        raise Exception("Failed to parse JSON string")
-    return d

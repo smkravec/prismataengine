@@ -1,8 +1,6 @@
 #include <boost/python.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 #include "rapidjson.h"
-#include "stringbuffer.h"
-#include "writer.h"
 #include "Action.h"
 #include "Card.h"
 #include "Common.h"
@@ -34,20 +32,13 @@ inline const char* actiontype_tostring(int v) {
     }
 }
 
-std::string json_stringify(rapidjson::Document & document)
+Prismata::GameState * json_to_gamestate(const std::string & json_str)
 {
-  rapidjson::StringBuffer buffer;
-  rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-  document.Accept(writer);
-  return buffer.GetString();
-}
-
-
-bool parse_json_str(const std::string & json_str, rapidjson::Document & document)
-{
+  rapidjson::Document document;
   bool parsingFailed = document.Parse(json_str.c_str()).HasParseError();
-  return parsingFailed;
+  return new Prismata::GameState(document);
 }
+
 
 std::string action_stringify(const Prismata::Action & v)
 {
@@ -91,7 +82,7 @@ std::string actions_json(const std::vector<Prismata::Action>& v)
 
 BOOST_PYTHON_MODULE(_prismataengine) {
 	boost::python::def("init", &Prismata::InitFromCardLibrary);
-	boost::python::def("strToRapidJson", &parse_json_str);
+	boost::python::def("jsonStrToGameState", &json_to_gamestate, boost::python::return_value_policy<boost::python::reference_existing_object>());
 	boost::python::enum_<Prismata::ActionID>("ActionType")
 		.value("USE_ABILITY", Prismata::ActionTypes::USE_ABILITY)
 		.value("BUY", Prismata::ActionTypes::BUY)
@@ -159,9 +150,6 @@ BOOST_PYTHON_MODULE(_prismataengine) {
         .def("json", &actions_json)
 		.def("clear", &std::vector<Prismata::Action>::clear)
 		;
-	boost::python::class_<rapidjson::Document, boost::shared_ptr<rapidjson::Document>, boost::noncopyable>("JsonDocument")
-    .def("__str__", &json_stringify)
-    ;
 	boost::python::class_<Prismata::GameState>("GameState")
 		.def("activePlayer", &Prismata::GameState::getActivePlayer) 
 		.def("addCard", static_cast<void (Prismata::GameState::*)(const Prismata::Card &)>(&Prismata::GameState::addCard))
