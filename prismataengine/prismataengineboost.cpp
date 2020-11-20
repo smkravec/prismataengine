@@ -39,18 +39,22 @@ Prismata::GameState * json_to_gamestate(const std::string & json_str)
   return new Prismata::GameState(document);
 }
 
+std::string card_json(const Prismata::Card & c)
+{
+  return c.toJSONString(true);
+}
 
-std::string action_stringify(const Prismata::Action & v)
+std::string action_stringify(const Prismata::Action & a)
 {
 	std::stringstream ss;
-    ss << "(Player = " << (int)v.getPlayer() << ", Type = " << actiontype_tostring((int)v.getType()) << ", ID = " << (int)v.getID() << ", Target = " << (int)v.getTargetID() <<")";
+    ss << "(Player = " << (int)a.getPlayer() << ", Type = " << actiontype_tostring((int)a.getType()) << ", ID = " << (int)a.getID() << ", Target = " << (int)a.getTargetID() <<")";
 	return ss.str();
 }
 
-std::string action_json(const Prismata::Action & v)
+std::string action_json(const Prismata::Action & a)
 {
 	std::stringstream ss;
-    ss << "{\"player\": " << (int)v.getPlayer() << ", \"type\": \"" << actiontype_tostring((int)v.getType()) << "\", \"id\": " << (int)v.getID() << ", \"target\": " << (int)v.getTargetID() <<"}";
+    ss << "{\"player\": " << (int)a.getPlayer() << ", \"type\": \"" << actiontype_tostring((int)a.getType()) << "\", \"id\": " << (int)a.getID() << ", \"target\": " << (int)a.getTargetID() <<"}";
 	return ss.str();
 }
 
@@ -114,7 +118,7 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.def(boost::python::init<Prismata::CardType, Prismata::PlayerID, int, Prismata::TurnType, Prismata::TurnType>())
 		.def("__eq__", &Prismata::Card::operator==)
 		.def("__lt__", &Prismata::Card::operator<)
-		.def("__str__", &Prismata::Card::toJSONString)
+		.def("__str__", &card_json)
 		;
 	boost::python::class_<Prismata::Action>("Action")
 		.def(boost::python::init<Prismata::PlayerID, Prismata::ActionID, Prismata::CardID>())
@@ -126,6 +130,9 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.def("setShift", &Prismata::Action::setShift)
 		.def("setSource", &Prismata::Action::setID)
 		.def("shift", &Prismata::Action::getShift)
+    .add_property("id", &Prismata::Action::getID)
+    .add_property("type", &Prismata::Action::getType)
+    .add_property("player", &Prismata::Action::getPlayer)
 		.def("source", &Prismata::Action::getID)
 		.def("__str__", &action_stringify)
 		.def("target", &Prismata::Action::getTargetID)
@@ -164,6 +171,7 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.def("numCardsBuyable", &Prismata::GameState::numCardsBuyable) 
 		.def("numCardsForPlayer", &Prismata::GameState::numCards) 
 		.def("setStartingState", &Prismata::GameState::setStartingState) 
+		.def("getCardByID", &Prismata::GameState::getCardByID, boost::python::return_value_policy<boost::python::reference_existing_object>()) 
 		.def("__str__", &Prismata::GameState::getStateString) 
 		.def("turnNumber", &Prismata::GameState::getTurnNumber) 
 		;
