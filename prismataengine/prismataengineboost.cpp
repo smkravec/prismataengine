@@ -1,6 +1,8 @@
 #include <boost/python.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 #include "rapidjson.h"
+#include "stringbuffer.h"
+#include "writer.h"
 #include "Action.h"
 #include "Card.h"
 #include "Common.h"
@@ -32,11 +34,19 @@ inline const char* actiontype_tostring(int v) {
     }
 }
 
-rapidjson::Document parse_json_str(const std::string & json_str)
+std::string json_stringify(rapidjson::Document & document)
 {
-  rapidjson::Document document;
+  rapidjson::StringBuffer buffer;
+  rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+  document.Accept(writer);
+  return buffer.GetString();
+}
+
+
+bool parse_json_str(const std::string & json_str, rapidjson::Document & document)
+{
   bool parsingFailed = document.Parse(json_str.c_str()).HasParseError();
-  return document;
+  return parsingFailed;
 }
 
 std::string action_stringify(const Prismata::Action & v)
@@ -149,6 +159,9 @@ BOOST_PYTHON_MODULE(_prismataengine) {
         .def("json", &actions_json)
 		.def("clear", &std::vector<Prismata::Action>::clear)
 		;
+	boost::python::class_<rapidjson::Document, boost::shared_ptr<rapidjson::Document>, boost::noncopyable>("JsonDocument")
+    .def("__str__", &json_stringify)
+    ;
 	boost::python::class_<Prismata::GameState>("GameState")
 		.def("activePlayer", &Prismata::GameState::getActivePlayer) 
 		.def("addCard", static_cast<void (Prismata::GameState::*)(const Prismata::Card &)>(&Prismata::GameState::addCard))
