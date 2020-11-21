@@ -84,6 +84,11 @@ std::string actions_json(const std::vector<Prismata::Action>& v)
 	return ss.str();
 }
 
+std::string card_name_str(const Prismata::Card & c)
+{
+  return c.getType().getName();
+}
+
 BOOST_PYTHON_MODULE(_prismataengine) {
 	boost::python::def("init", &Prismata::InitFromCardLibrary);
 	boost::python::def("jsonStrToGameState", &json_to_gamestate, boost::python::return_value_policy<boost::python::reference_existing_object>());
@@ -116,11 +121,20 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 	boost::python::class_<Prismata::Card>("Card")
 		.def(boost::python::init<std::string>())
 		.def(boost::python::init<Prismata::CardType, Prismata::PlayerID, int, Prismata::TurnType, Prismata::TurnType>())
+    .add_property("owner", &Prismata::Card::getPlayer)
+    .add_property("name", &card_name_str)
+    .add_property("health", &Prismata::Card::currentHealth)
+    .add_property("disruptDamage", &Prismata::Card::currentChill)
+    .add_property("status", &Prismata::Card::getStatus)
+    .add_property("constructionTime", &Prismata::Card::getConstructionTime)
+    .add_property("charge", &Prismata::Card::getCurrentCharges)
+    .add_property("delay", &Prismata::Card::getCurrentDelay)
+    .add_property("blocking", &Prismata::Card::canBlock)
 		.def("__eq__", &Prismata::Card::operator==)
 		.def("__lt__", &Prismata::Card::operator<)
 		.def("__str__", &card_json)
 		;
-	boost::python::class_<Prismata::Action>("Action")
+	boost::python::class_<Prismata::Action>("PrismataAction")
 		.def(boost::python::init<Prismata::PlayerID, Prismata::ActionID, Prismata::CardID>())
 		.def(boost::python::init<Prismata::PlayerID, Prismata::ActionID, Prismata::CardID, Prismata::CardID>())
 		.def("describe", &Prismata::Action::toStringEnglish)
@@ -130,13 +144,13 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.def("setShift", &Prismata::Action::setShift)
 		.def("setSource", &Prismata::Action::setID)
 		.def("shift", &Prismata::Action::getShift)
-    .add_property("id", &Prismata::Action::getID)
+    .add_property("cardid", &Prismata::Action::getID)
+    .add_property("target", &Prismata::Action::getTargetID)
     .add_property("type", &Prismata::Action::getType)
     .add_property("player", &Prismata::Action::getPlayer)
 		.def("source", &Prismata::Action::getID)
 		.def("__str__", &action_stringify)
 		.def("target", &Prismata::Action::getTargetID)
-		.def("type", &Prismata::Action::getType)
 		.def("json", &action_json)
 		;
 	boost::python::class_<Prismata::Move>("Move")
@@ -151,14 +165,14 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.def("__str__", &Prismata::Resources::getString)
 		.def("__iadd__", static_cast<void (Prismata::Resources::*)(const Prismata::Resources&)>(&Prismata::Resources::add))
 		;
-	boost::python::class_<std::vector<Prismata::Action>>("Actions")
+	boost::python::class_<std::vector<Prismata::Action>>("PrismataActions")
 		.def(boost::python::vector_indexing_suite<std::vector<Prismata::Action>>())
 		.def("__str__", &actions_stringify)
         .def("json", &actions_json)
 		.def("clear", &std::vector<Prismata::Action>::clear)
 		;
-	boost::python::class_<Prismata::GameState>("GameState")
-		.def("activePlayer", &Prismata::GameState::getActivePlayer) 
+	boost::python::class_<Prismata::GameState>("PrismataGameState")
+		.add_property("activePlayer", &Prismata::GameState::getActivePlayer) 
 		.def("addCard", static_cast<void (Prismata::GameState::*)(const Prismata::Card &)>(&Prismata::GameState::addCard))
 		.def("beginTurn", &Prismata::GameState::beginTurn) 
 		.def("doAction", &Prismata::GameState::doAction) 
