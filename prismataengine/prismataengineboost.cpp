@@ -262,6 +262,7 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 	boost::python::class_<Prismata::GameState>("PrismataGameState")
 		.add_property("activePlayer", &Prismata::GameState::getActivePlayer) 
 		.add_property("inactivePlayer", &Prismata::GameState::getInactivePlayer) 
+		.add_property("winner", &Prismata::GameState::winner) 
 		.add_property("activePhase", &Prismata::GameState::getActivePhase) 
 		.def("addCard", static_cast<void (Prismata::GameState::*)(const Prismata::Card &)>(&Prismata::GameState::addCard))
 		.def("beginTurn", &Prismata::GameState::beginTurn) 

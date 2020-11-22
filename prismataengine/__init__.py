@@ -74,8 +74,9 @@ class ConcreteAction():
         return getattr(self._action, key)
 
 class GameState():
-    def __init__(self, string):
+    def __init__(self, string, player1=None, player2=None):
         self._state = jsonStrToGameState(string)
+        self._players = (player1, player2)
         self.endPhase = PrismataAction(self._state.activePlayer, ActionType.END_PHASE, 0);
         self._actions = PrismataActions()
         self._cards = CardVector()
@@ -140,6 +141,9 @@ class GameState():
 
     def getLiveCards(self, player):
         return self._state.getLiveCards(player, self._cards)
+
+    def winner(self):
+        return f"Player {self._state.winner + 1}"
 
     def annotate(self, state):
         return {
