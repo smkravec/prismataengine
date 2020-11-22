@@ -78,15 +78,26 @@ class GameState():
         self.activePlayer = self._state.activePlayer
         self.endPhase = PrismataAction(self.activePlayer, ActionType.END_PHASE, 0);
         self._actions = PrismataActions()
+        self._toVectorNeedsUpdate = True
+        self._move = Move()
         self._cards = CardVector()
-        self._state.generateLegalActions(self._actions)
         self._abactions = dict()
+        self._ie = numpy.zeros(31, dtype=numpy.uint16)
+        if self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getMove"):
+            self._players[self.activePlayer].getMove(self._state, self._move)
+            if __debug__:
+                print(f"Player {1+self.activePlayer} Move: {self._move}")
+            self._state.doMove(self._move)
+            self.inactivePlayer = self._state.inactivePlayer
+            self.activePlayer = self._state.activePlayer
+        self._state.generateLegalActions(self._actions)
         for action in self._actions:
             self._abactions[fromActionDispatch[action.type][action.cardtype(self._state)]] = action
         if self.isLegal(self.endPhase):
             self._abactions[AbstractAction.EndPhase] = self.endPhase
         self._abactions_list = list(self._abactions.keys())
-        self._ie = numpy.zeros(31, dtype=numpy.uint16)
+        if self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getAction"):
+            return self.doAction(self._players[self.activePlayer].getAction(self._state))
 
     def getRawState(self):
         return self._state
@@ -120,12 +131,42 @@ class GameState():
         else:
             raise ValueError(f"Unable to coerce type for {action} ({type(action)})")
 
+    def step(self):
+        if self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getMove"):
+            self._players[self.activePlayer].getMove(self._state, self._move)
+            if __debug__:
+                print(f"Player {1+self.activePlayer} Move: {self._move}")
+            self._state.doMove(self._move)
+        if self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getAction"):
+            saveActivePlayer = self.activePlayer
+            if __debug__:
+                print(f"Player {1+self.activePlayer} Move: ", end="")
+            while saveActivePlayer == self.activePlayer:
+                action = self._players[self.activePlayer].getAction(self)
+                if __debug__:
+                    print(f"{action}, ", end="")
+                self.doAction(action)
+            if __debug__:
+                print("")
+
+    def doMove(self, move):
+        self._state.doMove(move)
+        self._toVectorNeedsUpdate = True
+        self.inactivePlayer = self._state.inactivePlayer
+        self.activePlayer = self._state.activePlayer
+        self.endPhase = PrismataAction(self.activePlayer, ActionType.END_PHASE, 0);
+        self._actions.clear()
+        self._state.generateLegalActions(self._actions)
+        self._abactions.clear()
+        for action in self._actions:
+            self._abactions[fromActionDispatch[action.type][action.cardtype(self._state)]] = action
+        if self.isLegal(self.endPhase):
+            self._abactions[AbstractAction.EndPhase] = self.endPhase
+        self._abactions_list = list(self._abactions.keys())
+
     def doAction(self, action):
-        # print(action, end="/")
-        action = self.coerceAction(action)
-        # print(action.json(), end="/")
-        # print(ConcreteAction(self,action).card)
-        self._state.doAction(action)
+        self._state.doAction(self.coerceAction(action))
+        self._toVectorNeedsUpdate = True
         self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
         self.endPhase = PrismataAction(self.activePlayer, ActionType.END_PHASE, 0);
@@ -188,6 +229,8 @@ class GameState():
                     },
                 }
     def toVector(self):
+        if not self._toVectorNeedsUpdate:
+            return self._ie
         self._ie[0] = self.isGameOver()
         self._ie[1] = self.activePlayer
         self._ie[2] = self._state.activePhase
@@ -195,6 +238,7 @@ class GameState():
         countCards(self._state, self.activePlayer, 8, self._ie)
         countResources(self._state, self.inactivePlayer, 17, self._ie)
         countCards(self._state, self.inactivePlayer, 22, self._ie)
+        self._toVectorNeedsUpdate = False
         return self._ie
 
     def __iter__(self):

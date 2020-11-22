@@ -10,10 +10,16 @@
 #include "Constants.h"
 #include "GameState.h"
 #include "Move.h"
+#include "Player_Random.h"
 #include "Prismata.h"
 #include "Resources.h"
 
 Prismata::GameState state;
+
+void getMove(Prismata::Player & p, const Prismata::GameState & g, Prismata::Move & m)
+{
+  p.getMove(g, m);
+}
 
 inline const char* actiontype_tostring(int v) {
     switch (v)
@@ -23,7 +29,7 @@ inline const char* actiontype_tostring(int v) {
       case Prismata::ActionTypes::END_PHASE: return "END_PHASE";
       case Prismata::ActionTypes::ASSIGN_BLOCKER: return "ASSIGN_BLOCKER";
       case Prismata::ActionTypes::ASSIGN_BREACH: return "ASSIGN_BREACH";
-		case 5: return "ASSIGN_FRONTLINE";
+      case Prismata::ActionTypes::ASSIGN_FRONTLINE: return "ASSIGN_FRONTLINE";
 		case 6: return "SNIPE";
 		case 7: return "CHILL";
 		case 8: return "WIPEOUT";
@@ -318,4 +324,15 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.def("turnNumber", &Prismata::GameState::getTurnNumber) 
 		.def("getLiveCards", &get_cards_player, boost::python::return_value_policy<boost::python::reference_existing_object>())
 		;
+	boost::python::class_<Prismata::PlayerPtr>("PlayerPtr")
+    ;
+	boost::python::class_<Prismata::Player>("Player")
+    .add_property("id", &Prismata::Player::ID)
+    .add_property("description", &Prismata::Player::getDescription)
+    .def("getMove", &getMove)
+    ;
+	boost::python::class_<Prismata::Player_Random>("AIPlayerRandom", "PrismataAI C++ Random Walk Player", boost::python::init<Prismata::PlayerID>(boost::python::args("playerID")))
+    .def("getMove", &Prismata::Player_Random::getMove)
+    .def("clone", &Prismata::Player_Random::clone)
+    ;
 }
