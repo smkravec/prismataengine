@@ -6,6 +6,7 @@
 #include "Action.h"
 #include "Card.h"
 #include "Common.h"
+#include "Constants.h"
 #include "GameState.h"
 #include "Move.h"
 #include "Prismata.h"
@@ -16,11 +17,11 @@ Prismata::GameState state;
 inline const char* actiontype_tostring(int v) {
     switch (v)
     {
-		case 0: return "USE_ABILITY";
-		case 1: return "BUY";
-		case 2: return "END_PHASE";
-		case 3: return "ASSIGN_BLOCKER";
-		case 4: return "ASSIGN_BREACH";
+      case Prismata::ActionTypes::USE_ABILITY: return "USE_ABILITY";
+      case Prismata::ActionTypes::BUY: return "BUY";
+      case Prismata::ActionTypes::END_PHASE: return "END_PHASE";
+      case Prismata::ActionTypes::ASSIGN_BLOCKER: return "ASSIGN_BLOCKER";
+      case Prismata::ActionTypes::ASSIGN_BREACH: return "ASSIGN_BREACH";
 		case 5: return "ASSIGN_FRONTLINE";
 		case 6: return "SNIPE";
 		case 7: return "CHILL";
@@ -87,22 +88,22 @@ std::string actions_json(const std::vector<Prismata::Action>& v)
 }
 
 std::map<unsigned int, unsigned int> offset_type = {
-  {8,  6},
-  {9,  5},
-  {10, 4},
-  {11, 4},
-  {12, 1},
-  {13, 1},
-  {14, 0},
-  {15, 0},
-  {16, 3},
-  {17, 3},
-  {18, 2},
-  {19, 2},
-  {28, 9},
+  {8,  1},
+  {9,  2},
+  {10, 0},
+  {11, 0},
+  {12, 3},
+  {13, 3},
+  {14, 4},
+  {15, 4},
+  {16, 5},
+  {17, 5},
+  {18, 6},
+  {19, 6},
+  {28, 7},
   {29, 8},
-  {30, 7},
-  {31, 7},
+  {30, 9},
+  {31, 9},
 };
 unsigned int card_bin(const Prismata::Card & c)
 {
@@ -114,35 +115,53 @@ int card_offset(const Prismata::Card & c, int offset)
 }
 void copy_resources(Prismata::GameState & g, const Prismata::PlayerID p, int offset, boost::python::numpy::ndarray & n)
 {
+  uint16_t *state = reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset);
   const Prismata::Resources & r = g.getResources(p);
-  n[offset] = r.amountOf(Prismata::Resources::Gold);
-  n[offset+1] = r.amountOf(Prismata::Resources::Gold);
-  n[offset+2] = r.amountOf(Prismata::Resources::Energy);
-  n[offset+3] = r.amountOf(Prismata::Resources::Blue);
-  n[offset+4] = r.amountOf(Prismata::Resources::Attack);
+  state[0] = r.amountOf(Prismata::Resources::Gold);
+  state[1] = r.amountOf(Prismata::Resources::Energy);
+  state[2] = r.amountOf(Prismata::Resources::Blue);
+  state[3] = r.amountOf(Prismata::Resources::Attack);
 }
-void card_counting(Prismata::CardVector & cv, int offset, boost::python::numpy::ndarray & n)
+size_t cardb_type_id(const Prismata::CardBuyable & c)
 {
-  n[offset] = 0;
-  n[offset+1] = 0;
-  n[offset+2] = 0;
-  n[offset+3] = 0;
-  n[offset+4] = 0;
-  n[offset+5] = 0;
-  n[offset+6] = 0;
-  n[offset+7] = 0;
-  for (const auto & c : cv)
-  {
-    n[offset_type[((c.getType().getID() << 2) | (c.isUnderConstruction() << 1) | (c.canBlock()))] + offset] += 1;
-  }
+  return c.getType().getID();
 }
+
 size_t card_type_id(const Prismata::Card & c)
 {
   return c.getType().getID();
 }
+std::string cardb_name_str(const Prismata::CardBuyable & c)
+{
+  return c.getType().getName();
+}
 std::string card_name_str(const Prismata::Card & c)
 {
   return c.getType().getName();
+}
+std::string card_counting(Prismata::CardVector & cv, int offset, boost::python::numpy::ndarray & n)
+{
+  uint16_t *state = reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset);
+  state[0] = 0;
+  state[1] = 0;
+  state[2] = 0;
+  state[3] = 0;
+  state[4] = 0;
+  state[5] = 0;
+  state[6] = 0;
+  state[7] = 0;
+  state[8] = 0;
+  std::stringstream ss;
+  for (const auto & c : cv)
+  {
+    ss << card_name_str(c) << "++ @ " << offset_type[((c.getType().getID() << 2) | (c.isUnderConstruction() << 1) | (c.canBlock()))] << ", ";
+    state[offset_type[((c.getType().getID() << 2) | (c.isUnderConstruction() << 1) | (c.canBlock()))]] += 1;
+  }
+  ss << "[";
+  for (int i = 0; i < 9; i++)
+    ss << state[i] << ", ";
+  ss << "]";
+  return ss.str();
 }
 Prismata::CardVector & get_cards_player(const Prismata::GameState & g, const Prismata::PlayerID player, Prismata::CardVector & c)
 {
@@ -180,7 +199,14 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.value("NUM_TYPES", Prismata::ActionTypes::NUM_TYPES)
 		.value("NONE", Prismata::ActionTypes::NONE)
 		;
-	boost::python::enum_<unsigned short>("ResourceTypes")
+	boost::python::enum_<int>("Phases")
+    .value("Action", Prismata::Phases::Action)
+    .value("Breach", Prismata::Phases::Breach)
+    .value("Confirm", Prismata::Phases::Confirm)
+    .value("Defense", Prismata::Phases::Defense)
+    .value("Swoosh", Prismata::Phases::Swoosh)
+    ;
+	boost::python::enum_<Prismata::ResourceType>("ResourceTypes")
 		.value("Gold", 0) // Prismata::Resources::Gold)
 		.value("Energy", 1) // Prismata::Resources::Energy)
 		.value("Blue", 2) // Prismata::Resources::Blue)
@@ -195,6 +221,13 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.value("Player_One", Prismata::Players::Player_One)
 		.value("Player_Two", Prismata::Players::Player_Two)
 		;
+	boost::python::class_<Prismata::CardBuyable>("CardBuyable")
+    .add_property("name", &cardb_name_str)
+    .def("__str__", &cardb_name_str)
+    .add_property("type", &cardb_type_id)
+		.def("__eq__", &Prismata::Card::operator==)
+		.def("__lt__", &Prismata::Card::operator<)
+    ;
 	boost::python::class_<Prismata::Card>("Card")
 		.def(boost::python::init<std::string>())
 		.def(boost::python::init<Prismata::CardType, Prismata::PlayerID, int, Prismata::TurnType, Prismata::TurnType>())
@@ -221,7 +254,6 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.def("describe", &Prismata::Action::toStringEnglish)
 		.def("__eq__", &Prismata::Action::operator==)
 		.def("__ne__", &Prismata::Action::operator!=)
-		.def("player", &Prismata::Action::getPlayer)
 		.def("setShift", &Prismata::Action::setShift)
 		.def("setSource", &Prismata::Action::setID)
 		.def("shift", &Prismata::Action::getShift)
@@ -229,9 +261,7 @@ BOOST_PYTHON_MODULE(_prismataengine) {
     .add_property("target", &Prismata::Action::getTargetID)
     .add_property("type", &Prismata::Action::getType)
     .add_property("player", &Prismata::Action::getPlayer)
-		.def("source", &Prismata::Action::getID)
 		.def("__str__", &action_stringify)
-		.def("target", &Prismata::Action::getTargetID)
 		.def("json", &action_json)
 		;
 	boost::python::class_<Prismata::Move>("Move")
@@ -276,10 +306,10 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.def("numCardsBuyable", &Prismata::GameState::numCardsBuyable) 
 		.def("numCardsForPlayer", &Prismata::GameState::numCards) 
 		.def("setStartingState", &Prismata::GameState::setStartingState) 
-		.def("getCardByID", &Prismata::GameState::getCardByID, boost::python::return_value_policy<boost::python::reference_existing_object>()) 
+		.def("getCardById", &Prismata::GameState::getCardByID, boost::python::return_value_policy<boost::python::reference_existing_object>()) 
+		.def("getCardBuyableById", &Prismata::GameState::getCardBuyableByID, boost::python::return_value_policy<boost::python::reference_existing_object>()) 
 		.def("__str__", &Prismata::GameState::getStateString) 
 		.def("turnNumber", &Prismata::GameState::getTurnNumber) 
-		.def("getLiveCardIDs", &Prismata::GameState::getCardIDs, boost::python::return_value_policy<boost::python::reference_existing_object>())
 		.def("getLiveCards", &get_cards_player, boost::python::return_value_policy<boost::python::reference_existing_object>())
 		;
 }
