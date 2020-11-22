@@ -147,7 +147,7 @@ class GameState():
         self._ie[2] = self._state.activePhase
         countResources(self._state, self.activePlayer, 3, self._ie)
         countCards(self.getLiveCards(self.activePlayer), 0, self._ie)
-        countResources(self._state, self.activePlayer, 17, self._ie)
+        countResources(self._state, self.inactivePlayer, 17, self._ie)
         countCards(self.getLiveCards(self.inactivePlayer), 14, self._ie)
         return self._ie
 

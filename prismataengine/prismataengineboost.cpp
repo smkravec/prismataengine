@@ -133,7 +133,7 @@ void card_counting(Prismata::CardVector & cv, int offset, boost::python::numpy::
   n[offset+7] = 0;
   for (const auto & c : cv)
   {
-    n[offset_type[((c.getType().getID() << 2) | (c.isUnderConstruction() << 1) | (c.canBlock())) + offset]] += 1;
+    n[offset_type[((c.getType().getID() << 2) | (c.isUnderConstruction() << 1) | (c.canBlock()))] + offset] += 1;
   }
 }
 size_t card_type_id(const Prismata::Card & c)
