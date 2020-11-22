@@ -1,6 +1,7 @@
 import enum
 import numpy
 from os import environ
+from functools import lru_cache
 from _prismataengine import *
 from importlib import resources
 if "PRISMATA_INIT_CARD_PATH" in environ:
@@ -10,7 +11,7 @@ else:
     with resources.path(__name__, 'cardLibrary.jso') as path:
         init(str(path))
 
-class AbstractAction(enum.Enum):
+class AbstractAction(enum.IntEnum):
     BuyEngineer = enum.auto()
     BuyDrone = enum.auto()
     BuySteelsplitter = enum.auto()
@@ -26,13 +27,6 @@ class AbstractAction(enum.Enum):
     AssignBreachBlastforge = enum.auto()
     EndPhase = enum.auto()
 
-    def fromAction(gamestate, action):
-        action = ConcreteAction(gamestate, action)
-        try:
-            return fromActionDispatch[action.type][action.card.type]
-        except Exception as e:
-            print(f"Exception: {e} ({type(e)})\nActionType: {action.type}, CardType: {action.card.type}, CardName: {action.card.name}")
-            return None
 fromActionDispatch = {
         ActionType.END_PHASE: {
             0: AbstractAction.EndPhase,
@@ -68,10 +62,7 @@ class ConcreteAction():
     def __init__(self, gamestate, action):
         self._action = action
         self.type = action.type
-        if self.type == ActionType.BUY:
-            self.card = gamestate.getCardBuyableById(action.cardid)
-        else:
-            self.card = gamestate.getCardById(action.cardid)
+        self.card = action.card(gamestate)
 
     def __getattr__(self, key):
         return getattr(self._action, key)
@@ -91,7 +82,7 @@ class GameState():
         self._state.generateLegalActions(self._actions)
         self._abactions = dict()
         for action in self._actions:
-            self._abactions[AbstractAction.fromAction(self, action)] = action
+            self._abactions[fromActionDispatch[action.type][action.cardtype(self._state)]] = action
         if self.isLegal(self.endPhase):
             self._abactions[AbstractAction.EndPhase] = self.endPhase
         self._abactions_list = list(self._abactions.keys())
@@ -121,7 +112,7 @@ class GameState():
 
     def coerceAction(self, action):
         if type(action) == AbstractAction:
-            return self.getAction(action)
+            return self._abactions[action]
         elif type(action) == ConcreteAction:
             return action._action
         elif type(action) == PrismataAction:
@@ -142,11 +133,12 @@ class GameState():
         self._state.generateLegalActions(self._actions)
         self._abactions.clear()
         for action in self._actions:
-            self._abactions[AbstractAction.fromAction(self, action)] = action
-        # if self.isLegal(self.endPhase):
-        #     self._abactions[AbstractAction.EndPhase] = self.endPhase
+            self._abactions[fromActionDispatch[action.type][action.cardtype(self._state)]] = action
+        if self.isLegal(self.endPhase):
+            self._abactions[AbstractAction.EndPhase] = self.endPhase
         self._abactions_list = list(self._abactions.keys())
 
+    @lru_cache
     def getCardBuyableById(self, cardid):
         return self._state.getCardBuyableById(cardid)
 
@@ -200,9 +192,9 @@ class GameState():
         self._ie[1] = self.activePlayer
         self._ie[2] = self._state.activePhase
         countResources(self._state, self.activePlayer, 3, self._ie)
-        (countCards(self.getLiveCards(self.activePlayer), 8, self._ie))
+        countCards(self._state, self.activePlayer, 8, self._ie)
         countResources(self._state, self.inactivePlayer, 17, self._ie)
-        (countCards(self.getLiveCards(self.inactivePlayer), 22, self._ie))
+        countCards(self._state, self.inactivePlayer, 22, self._ie)
         return self._ie
 
     def __iter__(self):

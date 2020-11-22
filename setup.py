@@ -27,7 +27,7 @@ if not os.path.isfile('prismataengine/cardLibrary.jso'):
     shutil.copy('PrismataAI/bin/asset/config/cardLibrary.jso', 'prismataengine')
 
 setup (name = 'prismataengine',
-       version = '2.2.3',
+       version = '2.2.4',
        description = 'This package provides access to the GameState object and supporting methods from Prismata',
        ext_modules = [prismataengine],
        packages = ['prismataengine'],
