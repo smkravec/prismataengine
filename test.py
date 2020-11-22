@@ -7,6 +7,7 @@ class PythonRandomPlayer(object):
     def getAction(self, gamestate):
         state = gamestate.toVector()
         actions = gamestate.getAbstractActions()
+        # print(gamestate.getAbstractActionsVector())
         # print(actions)
         # print([action.json() for action in gamestate._actions])
         # print([str(p.ConcreteAction(gamestate, action)) for action in gamestate._actions])
@@ -26,7 +27,7 @@ def runGame():
                  {"cardName":"Engineer", "color":1, "amount":2}
              ],
              "cards":["Drone","Engineer","Blastforge","Steelsplitter"]
-         }''')#, player1=PythonRandomPlayer(), player2=p.AIPlayerRandom(1))
+         }''', player1=PythonRandomPlayer(), player2=PythonRandomPlayer())
     # print('----------------NEW GAME NEW LIFE-------------')
     lastPlayer = 0
     while not gamestate.isGameOver():
@@ -40,12 +41,6 @@ def runGame():
             # print(gamestate.json())
             # time.sleep(0.1)
         gamestate.step()
-        actions = gamestate.getAbstractActions()
-        # print(actions)
-        # print([action.json() for action in gamestate._actions])
-        # print([str(p.ConcreteAction(gamestate, action)) for action in gamestate._actions])
-        action = random.choice(actions)
-        gamestate.doAction(action)
     print(f"Winner: {gamestate.winner()}")
     state = gamestate.toVector()
     pprint(gamestate.annotate(state))

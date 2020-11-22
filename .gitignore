@@ -1,0 +1,5 @@
+prismataengine/cardLibrary.jso
+prismataengine/__pycache__
+build
+dist
+prismataengine.egg-info/

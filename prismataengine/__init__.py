@@ -12,20 +12,20 @@ else:
         init(str(path))
 
 class AbstractAction(enum.IntEnum):
-    BuyEngineer = enum.auto()
-    BuyDrone = enum.auto()
-    BuySteelsplitter = enum.auto()
-    BuyBlastforge = enum.auto()
-    UseAbilityDrone = enum.auto()
-    UseAbilitySteelsplitter = enum.auto()
-    AssignBlockerEngineer = enum.auto()
-    AssignBlockerDrone = enum.auto()
-    AssignBlockerSteelsplitter = enum.auto()
-    AssignBreachEngineer = enum.auto()
-    AssignBreachDrone = enum.auto()
-    AssignBreachSteelsplitter = enum.auto()
-    AssignBreachBlastforge = enum.auto()
-    EndPhase = enum.auto()
+    BuyEngineer = 0
+    BuyDrone = 1
+    BuySteelsplitter = 2
+    BuyBlastforge = 3
+    UseAbilityDrone = 4
+    UseAbilitySteelsplitter = 5
+    AssignBlockerEngineer = 6
+    AssignBlockerDrone = 7
+    AssignBlockerSteelsplitter = 8
+    AssignBreachEngineer = 9
+    AssignBreachDrone = 10
+    AssignBreachSteelsplitter = 11
+    AssignBreachBlastforge = 12
+    EndPhase = 13
 
 fromActionDispatch = {
         ActionType.END_PHASE: {
@@ -81,14 +81,18 @@ class GameState():
         self._toVectorNeedsUpdate = True
         self._move = Move()
         self._cards = CardVector()
-        self._abactions = dict()
+        self._abactions = [None] * 14
         self._ie = numpy.zeros(30, dtype=numpy.uint16)
+        self._acvec = numpy.zeros(14, dtype=numpy.bool)
         self._state.generateLegalActions(self._actions)
         for action in self._actions:
-            self._abactions[fromActionDispatch[action.type][action.cardtype(self._state)]] = action
+            offset = fromActionDispatch[action.type][action.cardtype(self._state)]
+            self._abactions[int(offset)] = action
+            self._acvec[int(offset)] = True
         if self.isLegal(self.endPhase):
-            self._abactions[AbstractAction.EndPhase] = self.endPhase
-        self._abactions_list = list(self._abactions.keys())
+            self._abactions[int(AbstractAction.EndPhase)] = self.endPhase
+            self._acvec[int(AbstractAction.EndPhase)] = True
+        self._abactions_list = [AbstractAction(i) for i in range(14) if self._acvec[i]]
 
     def getRawState(self):
         return self._state
@@ -108,13 +112,17 @@ class GameState():
     def getAbstractActions(self):
         return self._abactions_list
 
+    def getAbstractActionsVector(self):
+        return self._acvec
 
     def getAction(self, abstractaction):
         return self._abactions[abstractaction]
 
     def coerceAction(self, action):
-        if type(action) == AbstractAction:
+        if type(action) == int:
             return self._abactions[action]
+        elif type(action) == AbstractAction:
+            return self._abactions[int(action)]
         elif type(action) == ConcreteAction:
             return action._action
         elif type(action) == PrismataAction:
@@ -152,12 +160,16 @@ class GameState():
         self.endPhase = PrismataAction(self.activePlayer, ActionType.END_PHASE, 0);
         self._actions.clear()
         self._state.generateLegalActions(self._actions)
+        self._acvec.fill(False)
         self._abactions.clear()
         for action in self._actions:
-            self._abactions[fromActionDispatch[action.type][action.cardtype(self._state)]] = action
+            offset = fromActionDispatch[action.type][action.cardtype(self._state)]
+            self._abactions[int(offset)] = action
+            self._acvec[int(offset)] = True
         if self.isLegal(self.endPhase):
-            self._abactions[AbstractAction.EndPhase] = self.endPhase
-        self._abactions_list = list(self._abactions.keys())
+            self._abactions[int(AbstractAction.EndPhase)] = self.endPhase
+            self._acvec[int(AbstractAction.EndPhase)] = True
+        self._abactions_list = [AbstractAction(i) for i in range(14) if self._acvec[i]]
 
     def doAction(self, action):
         self._state.doAction(self.coerceAction(action))
@@ -167,12 +179,17 @@ class GameState():
         self.endPhase = PrismataAction(self.activePlayer, ActionType.END_PHASE, 0);
         self._actions.clear()
         self._state.generateLegalActions(self._actions)
-        self._abactions.clear()
+        self._acvec.fill(False)
+        for i in range(14):
+            self._abactions[i] = None
         for action in self._actions:
-            self._abactions[fromActionDispatch[action.type][action.cardtype(self._state)]] = action
+            offset = fromActionDispatch[action.type][action.cardtype(self._state)]
+            self._abactions[int(offset)] = action
+            self._acvec[int(offset)] = True
         if self.isLegal(self.endPhase):
-            self._abactions[AbstractAction.EndPhase] = self.endPhase
-        self._abactions_list = list(self._abactions.keys())
+            self._abactions[int(AbstractAction.EndPhase)] = self.endPhase
+            self._acvec[int(AbstractAction.EndPhase)] = True
+        self._abactions_list = [AbstractAction(i) for i in range(14) if self._acvec[i]]
 
     @lru_cache
     def getCardBuyableById(self, cardid):
