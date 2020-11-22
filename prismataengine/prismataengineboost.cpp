@@ -104,22 +104,22 @@ std::string actions_json(const std::vector<Prismata::Action>& v)
 }
 
 std::map<unsigned int, unsigned int> offset_type = {
-  {8,  1},
-  {9,  2},
-  {10, 0},
-  {11, 0},
-  {12, 3},
-  {13, 3},
-  {14, 4},
-  {15, 4},
-  {16, 5},
-  {17, 5},
-  {18, 6},
-  {19, 6},
-  {28, 7},
-  {29, 8},
-  {30, 9},
-  {31, 9},
+  {8,  1}, // Drone not under construction, can't block
+  {9,  2}, // Drone not under construction, can block
+  {10, 0}, // Drone under construction
+  {11, 0}, // Drone under construction
+  {12, 3}, // Engineer not under construction
+  {13, 3}, // Engineer not under construction
+  {14, 4}, // Engineer under construction
+  {15, 4}, // Engineer under construction
+  {16, 5}, // Blastforge not under construction
+  {17, 5}, // Blastforge not under construction
+  {18, 6}, // Blastforge under construction
+  {19, 6}, // Blastforge under construction
+  {28, 7}, // Steelsplitter not under construction, can't block
+  {29, 8}, // Steelsplitter not under construction, can block
+  {30, 9}, // Steelsplitter under construction
+  {31, 9}, // Steelsplitter under construction
 };
 unsigned int card_bin(const Prismata::Card & c)
 {

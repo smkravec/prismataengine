@@ -189,7 +189,7 @@ class GameState():
 
     def annotate(self, state):
         return {
-                "gameOver": bool(state.isGameOver()),
+                "gameOver": bool(self.isGameOver()),
                 "player": state[0] + 1,
                 "phase": Phases.values.get(state[1], state[1]),
                 "activePlayer": {
