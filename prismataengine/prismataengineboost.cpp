@@ -86,23 +86,23 @@ std::string actions_json(const std::vector<Prismata::Action>& v)
 	return ss.str();
 }
 
-std::map<int, int> offset_type = {
-  {8, 6 + 7},
-  {9, 5 + 7},
-  {10, 4 + 7},
-  {11, 4 + 7},
-  {12, 1 + 7},
-  {13, 1 + 7},
-  {14, 0 + 7},
-  {15, 0 + 7},
-  {16, 3 + 7},
-  {17, 3 + 7},
-  {18, 2 + 7},
-  {19, 2 + 7},
-  {28, 9 + 7},
-  {29, 8 + 7},
-  {30, 7 + 7},
-  {31, 7 + 7},
+std::map<unsigned int, unsigned int> offset_type = {
+  {8,  6},
+  {9,  5},
+  {10, 4},
+  {11, 4},
+  {12, 1},
+  {13, 1},
+  {14, 0},
+  {15, 0},
+  {16, 3},
+  {17, 3},
+  {18, 2},
+  {19, 2},
+  {28, 9},
+  {29, 8},
+  {30, 7},
+  {31, 7},
 };
 unsigned int card_bin(const Prismata::Card & c)
 {
