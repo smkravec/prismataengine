@@ -167,7 +167,6 @@ void card_counting(const Prismata::GameState & g, const Prismata::PlayerID playe
   state[6] = 0;
   state[7] = 0;
   state[8] = 0;
-  std::stringstream ss;
   for (const auto & cardID : g.getCardIDs(player))
   {
     const Prismata::Card & c = g.getCardByID(cardID);

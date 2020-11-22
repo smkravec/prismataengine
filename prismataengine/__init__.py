@@ -82,22 +82,13 @@ class GameState():
         self._move = Move()
         self._cards = CardVector()
         self._abactions = dict()
-        self._ie = numpy.zeros(31, dtype=numpy.uint16)
-        if self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getMove"):
-            self._players[self.activePlayer].getMove(self._state, self._move)
-            if __debug__:
-                print(f"Player {1+self.activePlayer} Move: {self._move}")
-            self._state.doMove(self._move)
-            self.inactivePlayer = self._state.inactivePlayer
-            self.activePlayer = self._state.activePlayer
+        self._ie = numpy.zeros(30, dtype=numpy.uint16)
         self._state.generateLegalActions(self._actions)
         for action in self._actions:
             self._abactions[fromActionDispatch[action.type][action.cardtype(self._state)]] = action
         if self.isLegal(self.endPhase):
             self._abactions[AbstractAction.EndPhase] = self.endPhase
         self._abactions_list = list(self._abactions.keys())
-        if self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getAction"):
-            return self.doAction(self._players[self.activePlayer].getAction(self._state))
 
     def getRawState(self):
         return self._state
@@ -136,18 +127,22 @@ class GameState():
             self._players[self.activePlayer].getMove(self._state, self._move)
             if __debug__:
                 print(f"Player {1+self.activePlayer} Move: {self._move}")
-            self._state.doMove(self._move)
-        if self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getAction"):
+            self.doMove(self._move)
+            return True
+        elif self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getAction"):
             saveActivePlayer = self.activePlayer
             if __debug__:
                 print(f"Player {1+self.activePlayer} Move: ", end="")
-            while saveActivePlayer == self.activePlayer:
+            while saveActivePlayer == self.activePlayer and not self.isGameOver():
                 action = self._players[self.activePlayer].getAction(self)
                 if __debug__:
                     print(f"{action}, ", end="")
                 self.doAction(action)
             if __debug__:
                 print("")
+            return True
+        else:
+            return False
 
     def doMove(self, move):
         self._state.doMove(move)
@@ -190,54 +185,53 @@ class GameState():
         return self._state.getLiveCards(player, self._cards)
 
     def winner(self):
-        return f"Player {self._state.winner + 1}"
+        return self._state.winner
 
     def annotate(self, state):
         return {
-                "gameOver": bool(state[0]),
-                "player": state[1] + 1,
-                "phase": Phases.values.get(state[2], state[2]),
+                "gameOver": bool(state.isGameOver()),
+                "player": state[0] + 1,
+                "phase": Phases.values.get(state[1], state[1]),
                 "activePlayer": {
                     "number": self.activePlayer + 1,
                     "resources": {
-                        "Gold": state[3],
-                        "Energy": state[4],
-                        "Blue": state[5],
-                        "Attack": state[6],
+                        "Gold": state[2],
+                        "Energy": state[3],
+                        "Blue": state[4],
+                        "Attack": state[5],
                         },
                     "cards": {
-                        "Drone": (state[7], state[8], state[9]),
-                        "Engineer": (state[10], state[11]),
-                        "Blastforge": (state[12], state[13]),
-                        "Steelsplitter": (state[14], state[15], state[16]),
+                        "Drone": (state[6], state[7], state[8]),
+                        "Engineer": (state[9], state[10]),
+                        "Blastforge": (state[11], state[12]),
+                        "Steelsplitter": (state[13], state[14], state[15]),
                         },
                     },
                 "inactivePlayer": {
                     "number": self.inactivePlayer + 1,
                     "resources": {
-                        "Gold": state[17],
-                        "Energy": state[18],
-                        "Blue": state[19],
-                        "Attack": state[20],
+                        "Gold": state[16],
+                        "Energy": state[17],
+                        "Blue": state[18],
+                        "Attack": state[19],
                         },
                     "cards": {
-                        "Drone": (state[21], state[22], state[23]),
-                        "Engineer": (state[24], state[25]),
-                        "Blastforge": (state[26], state[27]),
-                        "Steelsplitter": (state[28], state[29], state[30]),
+                        "Drone": (state[20], state[21], state[22]),
+                        "Engineer": (state[23], state[24]),
+                        "Blastforge": (state[25], state[26]),
+                        "Steelsplitter": (state[27], state[28], state[29]),
                         },
                     },
                 }
     def toVector(self):
         if not self._toVectorNeedsUpdate:
             return self._ie
-        self._ie[0] = self.isGameOver()
-        self._ie[1] = self.activePlayer
-        self._ie[2] = self._state.activePhase
-        countResources(self._state, self.activePlayer, 3, self._ie)
-        countCards(self._state, self.activePlayer, 8, self._ie)
-        countResources(self._state, self.inactivePlayer, 17, self._ie)
-        countCards(self._state, self.inactivePlayer, 22, self._ie)
+        self._ie[0] = self.activePlayer
+        self._ie[1] = self._state.activePhase
+        countResources(self._state, self.activePlayer, 2, self._ie)
+        countCards(self._state, self.activePlayer, 7, self._ie)
+        countResources(self._state, self.inactivePlayer, 16, self._ie)
+        countCards(self._state, self.inactivePlayer, 21, self._ie)
         self._toVectorNeedsUpdate = False
         return self._ie
 
