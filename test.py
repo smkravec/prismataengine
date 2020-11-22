@@ -33,7 +33,7 @@ def runGame():
     while not gamestate.isGameOver():
         # print([(card.type, card.name) for card in gamestate.getLiveCards(gamestate.activePlayer)])
         state = gamestate.toVector()
-        print(gamestate.annotate(state))
+        # print(gamestate.annotate(state))
         if gamestate.activePlayer != lastPlayer:
             lastPlayer = gamestate.activePlayer
             # pprint(gamestate.annotate(state))
@@ -46,7 +46,7 @@ def runGame():
     pprint(gamestate.annotate(state))
     print(numpy.array_str(state, max_line_width=120))
 
-n = 1
+n = 100
 # for n in range(n):
 #     runGame()
 time = timeit.timeit(runGame, setup='gc.enable()', number=n)

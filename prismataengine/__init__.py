@@ -11,53 +11,6 @@ else:
     with resources.path(__name__, 'cardLibrary.jso') as path:
         init(str(path))
 
-class AbstractAction(enum.IntEnum):
-    BuyEngineer = 0
-    BuyDrone = 1
-    BuySteelsplitter = 2
-    BuyBlastforge = 3
-    UseAbilityDrone = 4
-    UseAbilitySteelsplitter = 5
-    AssignBlockerEngineer = 6
-    AssignBlockerDrone = 7
-    AssignBlockerSteelsplitter = 8
-    AssignBreachEngineer = 9
-    AssignBreachDrone = 10
-    AssignBreachSteelsplitter = 11
-    AssignBreachBlastforge = 12
-    EndPhase = 13
-
-fromActionDispatch = {
-        ActionType.END_PHASE: {
-            0: AbstractAction.EndPhase,
-            2: AbstractAction.EndPhase,
-            3: AbstractAction.EndPhase,
-            4: AbstractAction.EndPhase,
-            7: AbstractAction.EndPhase,
-            },
-        ActionType.USE_ABILITY: {
-            2: AbstractAction.UseAbilityDrone,
-            7: AbstractAction.UseAbilitySteelsplitter,
-            },
-        ActionType.ASSIGN_BREACH: {
-            3: AbstractAction.AssignBreachEngineer,
-            2: AbstractAction.AssignBreachDrone,
-            7: AbstractAction.AssignBreachSteelsplitter,
-            4: AbstractAction.AssignBreachBlastforge
-            },
-        ActionType.ASSIGN_BLOCKER: {
-            3: AbstractAction.AssignBlockerEngineer,
-            2: AbstractAction.AssignBlockerDrone,
-            7: AbstractAction.AssignBlockerSteelsplitter,
-            },
-        ActionType.BUY: {
-            3: AbstractAction.BuyEngineer,
-            2: AbstractAction.BuyDrone,
-            7: AbstractAction.BuySteelsplitter,
-            4: AbstractAction.BuyBlastforge
-            }
-        }
-        
 class ConcreteAction():
     def __init__(self, gamestate, action):
         self._action = action
@@ -81,18 +34,13 @@ class GameState():
         self._toVectorNeedsUpdate = True
         self._move = Move()
         self._cards = CardVector()
-        self._abactions = [None] * 14
+        self._abactions = numpy.zeros(14, dtype=numpy.uintp)
         self._ie = numpy.zeros(30, dtype=numpy.uint16)
         self._acvec = numpy.zeros(14, dtype=numpy.bool)
-        self._state.generateLegalActions(self._actions)
-        for action in self._actions:
-            offset = fromActionDispatch[action.type][action.cardtype(self._state)]
-            self._abactions[int(offset)] = action
-            self._acvec[int(offset)] = True
-        if self.isLegal(self.endPhase):
-            self._abactions[int(AbstractAction.EndPhase)] = self.endPhase
-            self._acvec[int(AbstractAction.EndPhase)] = True
-        self._abactions_list = [AbstractAction(i) for i in range(14) if self._acvec[i]]
+        self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
+        self._abactions_list = [AbstractAction.values[i] for i in range(14) if self._acvec[i]]
+        if __debug__:
+            print("Initialized GameState")
 
     def getRawState(self):
         return self._state
@@ -144,7 +92,7 @@ class GameState():
             while saveActivePlayer == self.activePlayer and not self.isGameOver():
                 action = self._players[self.activePlayer].getAction(self)
                 if __debug__:
-                    print(f"{action}, ", end="")
+                    print(f"{action}<{type(action).__name__}>, ", end="")
                 self.doAction(action)
             if __debug__:
                 print("")
@@ -158,18 +106,10 @@ class GameState():
         self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
         self.endPhase = PrismataAction(self.activePlayer, ActionType.END_PHASE, 0);
-        self._actions.clear()
-        self._state.generateLegalActions(self._actions)
         self._acvec.fill(False)
-        self._abactions.clear()
-        for action in self._actions:
-            offset = fromActionDispatch[action.type][action.cardtype(self._state)]
-            self._abactions[int(offset)] = action
-            self._acvec[int(offset)] = True
-        if self.isLegal(self.endPhase):
-            self._abactions[int(AbstractAction.EndPhase)] = self.endPhase
-            self._acvec[int(AbstractAction.EndPhase)] = True
-        self._abactions_list = [AbstractAction(i) for i in range(14) if self._acvec[i]]
+        self._abactions.fill(0)
+        self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
+        self._abactions_list = [AbstractAction.values[i] for i in range(14) if self._acvec[i]]
 
     def doAction(self, action):
         self._state.doAction(self.coerceAction(action))
@@ -177,19 +117,10 @@ class GameState():
         self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
         self.endPhase = PrismataAction(self.activePlayer, ActionType.END_PHASE, 0);
-        self._actions.clear()
-        self._state.generateLegalActions(self._actions)
         self._acvec.fill(False)
-        for i in range(14):
-            self._abactions[i] = None
-        for action in self._actions:
-            offset = fromActionDispatch[action.type][action.cardtype(self._state)]
-            self._abactions[int(offset)] = action
-            self._acvec[int(offset)] = True
-        if self.isLegal(self.endPhase):
-            self._abactions[int(AbstractAction.EndPhase)] = self.endPhase
-            self._acvec[int(AbstractAction.EndPhase)] = True
-        self._abactions_list = [AbstractAction(i) for i in range(14) if self._acvec[i]]
+        self._abactions.fill(0)
+        self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
+        self._abactions_list = [AbstractAction.values[i] for i in range(14) if self._acvec[i]]
 
     @lru_cache
     def getCardBuyableById(self, cardid):
@@ -207,7 +138,7 @@ class GameState():
     def annotate(self, state):
         return {
                 "gameOver": bool(self.isGameOver()),
-                "player": state[0] + 1,
+                "player": Players.values.get(state[0], state[0]),
                 "phase": Phases.values.get(state[1], state[1]),
                 "activePlayer": {
                     "number": self.activePlayer + 1,
