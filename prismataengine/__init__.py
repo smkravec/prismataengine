@@ -1,4 +1,5 @@
 import enum
+import numpy
 from os import environ
 from _prismataengine import *
 from importlib import resources
@@ -27,73 +28,70 @@ class AbstractAction(enum.Enum):
 
     def fromAction(gamestate, action):
         action = ConcreteAction(gamestate, action)
-        if action.type == ActionType.END_PHASE:
-            return AbstractAction.EndPhase
-        elif action.type == ActionType.USE_ABILITY:
-            if action.card.name == "Drone":
-                return AbstractAction.UseAbilityDrone
-            elif action.card.name == "Treant":
-                return AbstractAction.UseAbilitySteelSplitter
-            else:
-                return None
-        elif action.type == ActionType.ASSIGN_BREACH:
-            if action.card.name == "Engineer":
-                return AbstractAction.AssignBreachEngineer
-            elif action.card.name == "Drone":
-                return AbstractAction.AssignBreachDrone
-            elif action.card.name == "Treant":
-                return AbstractAction.AssignBreachSteelSplitter
-            elif action.card.name == "Brooder":
-                return AbstractAction.AssignBreachBlastForge
-            else:
-                return None
-        elif action.type == ActionType.ASSIGN_BLOCKER:
-            if action.card.name == "Engineer":
-                return AbstractAction.AssignBlockerEngineer
-            elif action.card.name == "Drone":
-                return AbstractAction.AssignBlockerDrone
-            elif action.card.name == "Treant":
-                return AbstractAction.AssignBlockerSteelSplitter
-            else:
-                return None
-        elif action.type == ActionType.BUY:
-            if action.card.name == "Engineer":
-                return AbstractAction.BuyEngineer
-            elif action.card.name == "Drone":
-                return AbstractAction.BuyDrone
-            elif action.card.name == "Treant":
-                return AbstractAction.BuySteelSplitter
-            elif action.card.name == "Brooder":
-                return AbstractAction.BuyBlastForge
-            else:
-                return None
-        else:
-            print(action.type)
-            print(action.card.name)
+        try:
+            return fromActionDispatch[action.type][action.card.type]
+        except Exception as e:
+            print(f"Exception: {e} ({type(e)})\nActionType: {action.type}, CardType: {action.card.type}, CardName: {action.card.name}")
             return None
+fromActionDispatch = {
+        ActionType.END_PHASE: {
+            0: AbstractAction.EndPhase,
+            2: AbstractAction.EndPhase,
+            3: AbstractAction.EndPhase,
+            4: AbstractAction.EndPhase,
+            7: AbstractAction.EndPhase,
+            },
+        ActionType.USE_ABILITY: {
+            2: AbstractAction.UseAbilityDrone,
+            7: AbstractAction.UseAbilitySteelSplitter,
+            },
+        ActionType.ASSIGN_BREACH: {
+            3: AbstractAction.AssignBreachEngineer,
+            2: AbstractAction.AssignBreachDrone,
+            4: AbstractAction.AssignBreachSteelSplitter,
+            7: AbstractAction.AssignBreachBlastForge
+            },
+        ActionType.ASSIGN_BLOCKER: {
+            3: AbstractAction.AssignBlockerEngineer,
+            2: AbstractAction.AssignBlockerDrone,
+            7: AbstractAction.AssignBlockerSteelSplitter,
+            },
+        ActionType.BUY: {
+            3: AbstractAction.BuyEngineer,
+            2: AbstractAction.BuyDrone,
+            7: AbstractAction.BuySteelSplitter,
+            4: AbstractAction.BuyBlastForge
+            }
+        }
         
 class ConcreteAction():
     def __init__(self, gamestate, action):
         self._action = action
+        self.type = action.type
         self.card = gamestate.getCardById(action.cardid)
 
     def __getattr__(self, key):
-        if key == "card":
-            return self.card
-        else:
-            return getattr(self._action, key)
+        return getattr(self._action, key)
 
 class GameState():
     def __init__(self, string):
         self._state = jsonStrToGameState(string)
         self.endPhase = PrismataAction(self._state.activePlayer, ActionType.END_PHASE, 0);
         self._actions = PrismataActions()
+        self._cards = CardVector()
+        self._state.generateLegalActions(self._actions)
+        self._abactions = dict()
+        for action in self._actions:
+            self._abactions[AbstractAction.fromAction(self, action)] = action
+        if self.isLegal(self.endPhase):
+            self._abactions[AbstractAction.EndPhase] = self.endPhase
+        self._abactions_list = list(self._abactions.keys())
+        self._ie = numpy.zeros(31, dtype=numpy.int8)
+        self.inactivePlayer = self._state.inactivePlayer
+        self.activePlayer = self._state.activePlayer
 
     def getRawState(self):
         return self._state
-
-    def getCardById(self, cardid):
-        return self._state.getCardByID(cardid)
 
     def isLegal(self, action):
         return self._state.isLegal(self.coerceAction(action))
@@ -108,30 +106,51 @@ class GameState():
         return self._state.__str__()
 
     def getAbstractActions(self):
-        self._generateLegalActions()
-        actions = set([AbstractAction.fromAction(self, action) for action in self._actions])
-        if AbstractAction.EndPhase not in actions and self.isLegal(self.endPhase):
-            actions.add(AbstractAction.EndPhase)
-        return list(actions)
+        return self._abactions_list
 
-    def _generateLegalActions(self):
-        self._actions.clear()
-        self._state.generateLegalActions(self._actions)
 
     def getAction(self, abstractaction):
-        self._generateLegalActions()
-        return next(filter(lambda t: AbstractAction.fromAction(self, t) == abstractaction, self._actions), self.endPhase)
+        return self._abactions[abstractaction]
 
     def coerceAction(self, action):
-        if type(action) == ConcreteAction:
+        if type(action) == AbstractAction:
+            return self.getAction(action)
+        elif type(action) == ConcreteAction:
             return action._action
         elif type(action) == PrismataAction:
             return action
-        elif type(action) == AbstractAction:
-            return self.getAction(action)
         else:
             raise ValueError(f"Unable to coerce type for {action} ({type(action)})")
 
     def doAction(self, action):
         self._state.doAction(self.coerceAction(action))
+        self._actions.clear()
+        self._state.generateLegalActions(self._actions)
+        self._abactions.clear()
+        for action in self._actions:
+            self._abactions[AbstractAction.fromAction(self, action)] = action
+        if self.isLegal(self.endPhase):
+            self._abactions[AbstractAction.EndPhase] = self.endPhase
+        self._abactions_list = list(self._abactions.keys())
+        self.inactivePlayer = self._state.inactivePlayer
+        self.activePlayer = self._state.activePlayer
+
+    def getCardById(self, cardid):
+            return self._state.getCardByID(cardid)
+
+    def getLiveCards(self, player):
+        return self._state.getLiveCards(player, self._cards)
+
+    def toVector(self):
+        self._ie[0] = self.isGameOver()
+        self._ie[1] = self.activePlayer
+        self._ie[2] = self._state.activePhase
+        countResources(self._state, self.activePlayer, 3, self._ie)
+        countCards(self.getLiveCards(self.activePlayer), 0, self._ie)
+        countResources(self._state, self.activePlayer, 17, self._ie)
+        countCards(self.getLiveCards(self.inactivePlayer), 14, self._ie)
+        return self._ie
+
+    def __iter__(self):
+        return iter(self.toVector())
 

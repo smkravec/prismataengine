@@ -1,5 +1,7 @@
 #include <boost/python.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+#include <boost/python/numpy.hpp>
+#include <boost/python/numpy/ndarray.hpp>
 #include "rapidjson.h"
 #include "Action.h"
 #include "Card.h"
@@ -84,14 +86,83 @@ std::string actions_json(const std::vector<Prismata::Action>& v)
 	return ss.str();
 }
 
+std::map<int, int> offset_type = {
+  {8, 6 + 7},
+  {9, 5 + 7},
+  {10, 4 + 7},
+  {11, 4 + 7},
+  {12, 1 + 7},
+  {13, 1 + 7},
+  {14, 0 + 7},
+  {15, 0 + 7},
+  {16, 3 + 7},
+  {17, 3 + 7},
+  {18, 2 + 7},
+  {19, 2 + 7},
+  {28, 9 + 7},
+  {29, 8 + 7},
+  {30, 7 + 7},
+  {31, 7 + 7},
+};
+unsigned int card_bin(const Prismata::Card & c)
+{
+  return (c.getType().getID() << 2) | (c.isUnderConstruction() << 1) | (c.canBlock());
+}
+int card_offset(const Prismata::Card & c, int offset)
+{
+  return offset_type[((c.getType().getID() << 2) | (c.isUnderConstruction() << 1) | (c.canBlock())) + offset];
+}
+void copy_resources(Prismata::GameState & g, const Prismata::PlayerID p, int offset, boost::python::numpy::ndarray & n)
+{
+  const Prismata::Resources & r = g.getResources(p);
+  n[offset] = r.amountOf(Prismata::Resources::Gold);
+  n[offset+1] = r.amountOf(Prismata::Resources::Gold);
+  n[offset+2] = r.amountOf(Prismata::Resources::Energy);
+  n[offset+3] = r.amountOf(Prismata::Resources::Blue);
+  n[offset+4] = r.amountOf(Prismata::Resources::Attack);
+}
+void card_counting(Prismata::CardVector & cv, int offset, boost::python::numpy::ndarray & n)
+{
+  n[offset] = 0;
+  n[offset+1] = 0;
+  n[offset+2] = 0;
+  n[offset+3] = 0;
+  n[offset+4] = 0;
+  n[offset+5] = 0;
+  n[offset+6] = 0;
+  n[offset+7] = 0;
+  for (const auto & c : cv)
+  {
+    n[offset_type[((c.getType().getID() << 2) | (c.isUnderConstruction() << 1) | (c.canBlock())) + offset]] += 1;
+  }
+}
+size_t card_type_id(const Prismata::Card & c)
+{
+  return c.getType().getID();
+}
 std::string card_name_str(const Prismata::Card & c)
 {
   return c.getType().getName();
 }
+Prismata::CardVector & get_cards_player(const Prismata::GameState & g, const Prismata::PlayerID player, Prismata::CardVector & c)
+{
+  size_t n = g.numCards(player);
+  c.reserve(n);
+  c.resize(n);
+  int i = 0;
+  for (const auto & cardID : g.getCardIDs(player))
+  {
+    c[i++] = g.getCardByID(cardID);
+  }
+  return c;
+}
 
 BOOST_PYTHON_MODULE(_prismataengine) {
+  boost::python::numpy::initialize();
 	boost::python::def("init", &Prismata::InitFromCardLibrary);
 	boost::python::def("jsonStrToGameState", &json_to_gamestate, boost::python::return_value_policy<boost::python::reference_existing_object>());
+  boost::python::def("countCards", &card_counting);
+  boost::python::def("countResources", &copy_resources);
 	boost::python::enum_<Prismata::ActionID>("ActionType")
 		.value("USE_ABILITY", Prismata::ActionTypes::USE_ABILITY)
 		.value("BUY", Prismata::ActionTypes::BUY)
@@ -109,6 +180,12 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.value("NUM_TYPES", Prismata::ActionTypes::NUM_TYPES)
 		.value("NONE", Prismata::ActionTypes::NONE)
 		;
+	boost::python::enum_<unsigned short>("ResourceTypes")
+		.value("Gold", 0) // Prismata::Resources::Gold)
+		.value("Energy", 1) // Prismata::Resources::Energy)
+		.value("Blue", 2) // Prismata::Resources::Blue)
+		.value("Attack", 5) // Prismata::Resources::Attack)
+		;
 	boost::python::enum_<int>("AliveStatus")
 		.value("Alive", Prismata::AliveStatus::Alive)
 		.value("Dead", Prismata::AliveStatus::Dead)
@@ -123,13 +200,17 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.def(boost::python::init<Prismata::CardType, Prismata::PlayerID, int, Prismata::TurnType, Prismata::TurnType>())
     .add_property("owner", &Prismata::Card::getPlayer)
     .add_property("name", &card_name_str)
+    .add_property("type", &card_type_id)
+    .add_property("bin", &card_bin)
+    .def("offset", &card_offset)
     .add_property("health", &Prismata::Card::currentHealth)
     .add_property("disruptDamage", &Prismata::Card::currentChill)
     .add_property("status", &Prismata::Card::getStatus)
     .add_property("constructionTime", &Prismata::Card::getConstructionTime)
     .add_property("charge", &Prismata::Card::getCurrentCharges)
     .add_property("delay", &Prismata::Card::getCurrentDelay)
-    .add_property("blocking", &Prismata::Card::canBlock)
+    .add_property("canBlock", &Prismata::Card::canBlock)
+    .add_property("underConstruction", &Prismata::Card::isUnderConstruction)
 		.def("__eq__", &Prismata::Card::operator==)
 		.def("__lt__", &Prismata::Card::operator<)
 		.def("__str__", &card_json)
@@ -164,6 +245,13 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.def("__ne__", &Prismata::Resources::operator!=)
 		.def("__str__", &Prismata::Resources::getString)
 		.def("__iadd__", static_cast<void (Prismata::Resources::*)(const Prismata::Resources&)>(&Prismata::Resources::add))
+    .def("amountOf", &Prismata::Resources::amountOf, boost::python::return_value_policy<boost::python::return_by_value>()) 
+    .def("has", &Prismata::Resources::has)
+    // .def("__dict__", &Prismata::Resources::amountOf, boost::python::return_value_policy<boost::python::return_by_value>()) 
+		;
+	boost::python::class_<Prismata::CardVector>("CardVector")
+		.def(boost::python::vector_indexing_suite<Prismata::CardVector>())
+		.def("clear", &Prismata::CardVector::clear)
 		;
 	boost::python::class_<std::vector<Prismata::Action>>("PrismataActions")
 		.def(boost::python::vector_indexing_suite<std::vector<Prismata::Action>>())
@@ -173,6 +261,8 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		;
 	boost::python::class_<Prismata::GameState>("PrismataGameState")
 		.add_property("activePlayer", &Prismata::GameState::getActivePlayer) 
+		.add_property("inactivePlayer", &Prismata::GameState::getInactivePlayer) 
+		.add_property("activePhase", &Prismata::GameState::getActivePhase) 
 		.def("addCard", static_cast<void (Prismata::GameState::*)(const Prismata::Card &)>(&Prismata::GameState::addCard))
 		.def("beginTurn", &Prismata::GameState::beginTurn) 
 		.def("doAction", &Prismata::GameState::doAction) 
@@ -188,5 +278,7 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 		.def("getCardByID", &Prismata::GameState::getCardByID, boost::python::return_value_policy<boost::python::reference_existing_object>()) 
 		.def("__str__", &Prismata::GameState::getStateString) 
 		.def("turnNumber", &Prismata::GameState::getTurnNumber) 
+		.def("getLiveCardIDs", &Prismata::GameState::getCardIDs, boost::python::return_value_policy<boost::python::reference_existing_object>())
+		.def("getLiveCards", &get_cards_player, boost::python::return_value_policy<boost::python::reference_existing_object>())
 		;
 }

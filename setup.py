@@ -12,7 +12,7 @@ if sys.platform == "win32" :
     library_dirs=['C:/Boost/lib']
 else :
     include_dirs = ["/usr/include/boost-1_32","."]
-    libraries=["boost_python3"]
+    libraries=["boost_python3", "boost_numpy3"]
     library_dirs=['/usr/local/lib']
 
 include_dirs.extend(["PrismataAI/source", "PrismataAI/source/engine", "PrismataAI/source/rapidjson"])
@@ -27,7 +27,7 @@ if not os.path.isfile('prismataengine/cardLibrary.jso'):
     shutil.copy('PrismataAI/bin/asset/config/cardLibrary.jso', 'prismataengine')
 
 setup (name = 'prismataengine',
-       version = '2.1.0',
+       version = '2.2.0',
        description = 'This package provides access to the GameState object and supporting methods from Prismata',
        ext_modules = [prismataengine],
        packages = ['prismataengine'],
