@@ -112,7 +112,9 @@ class GameState():
         self._abactions_list = [AbstractAction.values[i] for i in range(14) if self._acvec[i]]
 
     def doAction(self, action):
-        self._state.doAction(self.coerceAction(action))
+        actionPointer = self.coerceAction(action)
+        assert(actionPointer)
+        self._state.doAction(actionPointer)
         self._toVectorNeedsUpdate = True
         self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
