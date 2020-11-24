@@ -3,13 +3,14 @@ import numpy
 from os import environ
 from functools import lru_cache
 from _prismataengine import *
+import _prismataengine as p
 from importlib import resources
 if "PRISMATA_INIT_CARD_PATH" in environ:
-    if environ.getenv("PRISMATA_INIT_CARD_PATH", None):
-        init(environ.getenv("PRISMATA_INIT_CARD_PATH", None))
+    if environ.get("PRISMATA_INIT_CARD_PATH", None):
+        p.init(environ.get("PRISMATA_INIT_CARD_PATH", None))
 else:
     with resources.path(__name__, 'cardLibrary.jso') as path:
-        init(str(path))
+        p.init(str(path))
 
 class ConcreteAction():
     def __init__(self, gamestate, action):
@@ -21,24 +22,24 @@ class ConcreteAction():
         return getattr(self._action, key)
 
     def __str__(self):
-        return f"{self.card.name} ({self.card.type}): {ActionType.values[self._action.type]} ({self.type})"
+        return f"{self.card.name} ({self.card.type}): {p.ActionType.values[self._action.type]} ({self.type})"
 
 class GameState():
     def __init__(self, string, player1=None, player2=None):
-        self._state = jsonStrToGameState(string)
+        self._state = p.jsonStrToGameState(string)
         self._players = (player1, player2)
         self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
-        self.endPhase = PrismataAction(self.activePlayer, ActionType.END_PHASE, 0);
-        self._actions = PrismataActions()
+        self.endPhase = p.PrismataAction(self.activePlayer, p.ActionType.END_PHASE, 0)
+        self._actions = p.PrismataActions()
         self._toVectorNeedsUpdate = True
-        self._move = Move()
-        self._cards = CardVector()
+        self._move = p.Move()
+        self._cards = p.CardVector()
         self._abactions = numpy.zeros(14, dtype=numpy.uintp)
         self._ie = numpy.zeros(30, dtype=numpy.uint16)
         self._acvec = numpy.zeros(14, dtype=numpy.bool)
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
-        self._abactions_list = [AbstractAction.values[i] for i in range(14) if self._acvec[i]]
+        self._abactions_list = [p.AbstractAction.values[i] for i in range(14) if self._acvec[i]]
         if __debug__:
             print("Initialized GameState")
 
@@ -69,11 +70,11 @@ class GameState():
     def coerceAction(self, action):
         if type(action) == int:
             return self._abactions[action]
-        elif type(action) == AbstractAction:
+        elif type(action) == p.AbstractAction:
             return self._abactions[int(action)]
         elif type(action) == ConcreteAction:
             return action._action
-        elif type(action) == PrismataAction:
+        elif type(action) == p.PrismataAction:
             return action
         else:
             raise ValueError(f"Unable to coerce type for {action} ({type(action)})")
@@ -105,11 +106,11 @@ class GameState():
         self._toVectorNeedsUpdate = True
         self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
-        self.endPhase = PrismataAction(self.activePlayer, ActionType.END_PHASE, 0);
+        self.endPhase = p.PrismataAction(self.activePlayer, p.ActionType.END_PHASE, 0)
         self._acvec.fill(False)
         self._abactions.fill(0)
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
-        self._abactions_list = [AbstractAction.values[i] for i in range(14) if self._acvec[i]]
+        self._abactions_list = [p.AbstractAction.values[i] for i in range(14) if self._acvec[i]]
 
     def doAction(self, action):
         actionPointer = self.coerceAction(action)
@@ -118,11 +119,11 @@ class GameState():
         self._toVectorNeedsUpdate = True
         self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
-        self.endPhase = PrismataAction(self.activePlayer, ActionType.END_PHASE, 0);
+        self.endPhase = p.PrismataAction(self.activePlayer, p.ActionType.END_PHASE, 0)
         self._acvec.fill(False)
         self._abactions.fill(0)
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
-        self._abactions_list = [AbstractAction.values[i] for i in range(14) if self._acvec[i]]
+        self._abactions_list = [p.AbstractAction.values[i] for i in range(14) if self._acvec[i]]
 
     @lru_cache
     def getCardBuyableById(self, cardid):
@@ -140,8 +141,8 @@ class GameState():
     def annotate(self, state):
         return {
                 "gameOver": bool(self.isGameOver()),
-                "player": Players.values.get(state[0], state[0]),
-                "phase": Phases.values.get(state[1], state[1]),
+                "player": p.Players.values.get(state[0], state[0]),
+                "phase": p.Phases.values.get(state[1], state[1]),
                 "activePlayer": {
                     "number": self.activePlayer + 1,
                     "resources": {
@@ -178,10 +179,10 @@ class GameState():
             return self._ie
         self._ie[0] = self.activePlayer
         self._ie[1] = self._state.activePhase
-        countResources(self._state, self.activePlayer, 2, self._ie)
-        countCards(self._state, self.activePlayer, 7, self._ie)
-        countResources(self._state, self.inactivePlayer, 16, self._ie)
-        countCards(self._state, self.inactivePlayer, 21, self._ie)
+        p.countResources(self._state, self.activePlayer, 2, self._ie)
+        p.countCards(self._state, self.activePlayer, 7, self._ie)
+        p.countResources(self._state, self.inactivePlayer, 16, self._ie)
+        p.countCards(self._state, self.inactivePlayer, 21, self._ie)
         self._toVectorNeedsUpdate = False
         return self._ie
 
