@@ -1,10 +1,11 @@
 #include "prismataengineboost.h"
 
 namespace Player {
-void getMove(Prismata::Player &p, const Prismata::GameState &g,
+void getMove(std::shared_ptr<Prismata::Player> p, const Prismata::GameState &g,
              Prismata::Move &m) {
-  p.getMove(g, m);
+  (*p).getMove(g, m);
 }
+
 }; // namespace Player
 
 namespace GameState {
@@ -244,18 +245,31 @@ std::string vectorToJson(const std::vector<Prismata::Action> &v) {
 
 } // namespace Action
 
+void playerFactoryInit(const std::string & s) {
+    Prismata::AIParameters::Instance().parseJSONString(s);
+}
+
+const std::shared_ptr<Prismata::Player> playerFactory(const Prismata::PlayerID p, const std::string & playerName) {
+    return Prismata::AIParameters::Instance().getPlayer(p, playerName);
+}
+
 BOOST_PYTHON_MODULE(_prismataengine) {
   boost::python::numpy::initialize();
   boost::python::def("init", &Prismata::InitFromCardLibrary);
   boost::python::def("jsonStrToGameState", &GameState::fromJson,
                      boost::python::return_value_policy<
                          boost::python::reference_existing_object>());
+                         
+  boost::python::def("getAIPlayer", &playerFactory,
+                     boost::python::return_value_policy<
+                         boost::python::return_by_value>());
+  boost::python::def("initAI", &playerFactoryInit);
 
   boost::python::def("countCards", &GameState::cardCounting);
   boost::python::def("countResources", &GameState::copyResources);
-
+  boost::python::def("getMove", &Player::getMove, boost::python::args("p", "g", "m"));
+  
   boost::python::enum_<Prismata::ActionID>("ActionType")
-      .value("USE_ABILITY", Prismata::ActionTypes::USE_ABILITY)
       .value("BUY", Prismata::ActionTypes::BUY)
       .value("END_PHASE", Prismata::ActionTypes::END_PHASE)
       .value("ASSIGN_BLOCKER", Prismata::ActionTypes::ASSIGN_BLOCKER)
@@ -442,19 +456,7 @@ BOOST_PYTHON_MODULE(_prismataengine) {
       .def("setStartingState", &Prismata::GameState::setStartingState)
       .def("__str__", &Prismata::GameState::getStateString)
       .def("turnNumber", &Prismata::GameState::getTurnNumber);
-
-  boost::python::class_<Prismata::PlayerPtr>("PlayerPtr");
+  boost::python::class_<Prismata::Player, boost::noncopyable>("PrismataPlayer", boost::python::no_init);
+  boost::python::register_ptr_to_python< std::shared_ptr<Prismata::Player> >();
   
-  boost::python::class_<Prismata::MoveIterator>("MoveIterator")
-
-  boost::python::class_<Prismata::Player>("Player")
-      .add_property("description", &Prismata::Player::getDescription)
-      .add_property("id", &Prismata::Player::ID)
-      .def("getMove", &Player::getMove)
-      .def("__str__", &Prismata::Player::getDescription);
-
-  boost::python::class_<Prismata::Player_Random>(
-      "AIPlayerRandom", "PrismataAI C++ Random Walk Player",
-      boost::python::init<Prismata::PlayerID>(boost::python::args("playerID")))
-      .def("getMove", &Prismata::Player_Random::getMove)
-      .def("clone", &Prismata::Player_Random::clone);
+}

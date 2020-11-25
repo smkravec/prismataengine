@@ -6,7 +6,6 @@
 #include "Constants.h"
 #include "GameState.h"
 #include "Move.h"
-#include "Player_Random.h"
 #include "AIParameters.h"
 #include "Prismata.h"
 #include "Resources.h"
@@ -18,7 +17,7 @@
 #include <boost/variant.hpp>
 
 namespace Player {
-void getMove(Prismata::Player &p, const Prismata::GameState &g,
+void getMove(std::shared_ptr<Prismata::Player> p, const Prismata::GameState &g,
              Prismata::Move &m);
 };
 namespace GameState {

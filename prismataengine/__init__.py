@@ -11,6 +11,10 @@ if "PRISMATA_INIT_CARD_PATH" in environ:
 else:
     with resources.path(__name__, 'cardLibrary.jso') as path:
         p.init(str(path))
+if "PRISMATA_INIT_AI_JSON_PATH" in environ:
+    if environ.get("PRISMATA_INIT_AI_JSON_PATH", None):
+        with open(environ.get("PRISMATA_INIT_AI_JSON_PATH")) as f:
+            p.initAI(f.read())
 
 class ConcreteAction():
     def __init__(self, gamestate, action):
@@ -25,8 +29,12 @@ class ConcreteAction():
         return f"{self.card.name} ({self.card.type}): {p.ActionType.values[self._action.type]} ({self.type})"
 
 class GameState():
-    def __init__(self, string, cards=11, player1=None, player2=None):
+    def __init__(self, string, cards=11, player1=None, player2=None, player2json=None):
         self._state = p.jsonStrToGameState(string)
+        if player2json:
+            p.initAI(playerjson)
+        if type(player2) is str:
+            player2 = p.getAIPlayer(p.Players.Two, player2)
         self._players = (player1, player2)
         self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
@@ -87,14 +95,16 @@ class GameState():
             raise ValueError(f"Unable to coerce type for {action} ({type(action)})")
 
     def step(self):
-        if self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getMove"):
-            self._players[self.activePlayer].getMove(self._state, self._move)
-            if __debug__:
-                print(f"Player {1+self.activePlayer} Move: {self._move}")
-            self.doMove(self._move)
+        saveActivePlayer = self.activePlayer
+        if self._players[self.activePlayer] and type(self._players[self.activePlayer]) == p.PrismataPlayer:
+            while saveActivePlayer == self.activePlayer and not self.isGameOver():
+                self._move.clear()
+                p.getMove(self._players[self.activePlayer], self._state, self._move)
+                if __debug__:
+                    print(f"Player {1+self.activePlayer} Move: {self._move}")
+                self.doMove(self._move)
             return True
         elif self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getAction"):
-            saveActivePlayer = self.activePlayer
             if __debug__:
                 print(f"Player {1+self.activePlayer} Move: ", end="")
             while saveActivePlayer == self.activePlayer and not self.isGameOver():
@@ -106,6 +116,7 @@ class GameState():
                 print("")
             return True
         else:
+            print(type(self._players[self.activePlayer]), dir(self._players[self.activePlayer]), self._players[self.activePlayer])
             return False
 
     def doMove(self, move):

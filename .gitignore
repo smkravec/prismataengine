@@ -3,3 +3,7 @@ prismataengine/__pycache__
 build
 dist
 prismataengine.egg-info/
+prismataengine/*.ipynb
+prismataengine/.ipynn_checkpoints
+.ipynb_checkpoints
+test*.py
