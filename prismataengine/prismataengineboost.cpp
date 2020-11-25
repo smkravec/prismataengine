@@ -60,8 +60,36 @@ void cardCounting(const Prismata::GameState &g, const Prismata::PlayerID player,
   state[6] = 0;
   state[7] = 0;
   state[8] = 0;
+  state[9] = 0;
+#ifndef SET_FOUR
+  state[10] = 0;
+    state[11] = 0;
+    state[12] = 0;
+    state[13] = 0;
+    state[14] = 0;
+    state[15]= 0;
+    state[16] = 0;
+    state[17] = 0;
+    state[18] = 0;
+    state[19] = 0;
+    state[10] = 0;
+    state[21] = 0;
+    state[22] = 0;
+    state[23] = 0;
+    state[24] = 0;
+    state[25] = 0;
+    state[26] = 0;
+    state[27] = 0;
+    state[28] = 0;
+    state[29] = 0;
+    state[30] = 0;
+    state[31] = 0;
+    state[32] = 0;
+    state[33] = 0;
+#endif
   for (const auto &cardID : g.getCardIDs(player)) {
     const Prismata::Card &c = g.getCardByID(cardID);
+    // std::cout << Card::toJson(c) << " (" << Card::getBin(c) << ", " << Action::stateOffset[Card::getBin(c)] << ")" << std::endl;
     state[Action::stateOffset[Card::getBin(c)]] += 1;
   }
 }
@@ -70,19 +98,35 @@ void copyResources(Prismata::GameState &g, const Prismata::PlayerID p,
   uint16_t *state =
       reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset);
   const Prismata::Resources &r = g.getResources(p);
+#ifdef SET_FOUR
   state[0] = r.amountOf(Prismata::Resources::Gold);
   state[1] = r.amountOf(Prismata::Resources::Energy);
   state[2] = r.amountOf(Prismata::Resources::Blue);
   state[3] = r.amountOf(Prismata::Resources::Attack);
+#else
+  state[0] = r.amountOf(Prismata::Resources::Gold);
+  state[1] = r.amountOf(Prismata::Resources::Energy);
+  state[2] = r.amountOf(Prismata::Resources::Blue);
+  state[3] = r.amountOf(Prismata::Resources::Red);
+  state[4] = r.amountOf(Prismata::Resources::Green);
+  state[5] = r.amountOf(Prismata::Resources::Attack);
+#endif
 }
 }; // namespace GameState
 
 namespace Card {
 std::string toJson(const Prismata::Card &c) { return c.toJSONString(true); }
+#ifdef SET_FOUR
 static inline unsigned int getBin(const Prismata::Card &c) {
   return (c.getType().getID() << 2) | (c.isUnderConstruction() << 1) |
          (c.canBlock());
 }
+#else
+static inline unsigned int getBin(const Prismata::Card &c) {
+  return (c.getType().getID() << 8) | (c.getConstructionTime() << 6) |
+         (c.canBlock() << 5) | (c.currentHealth() << 2) | (c.getCurrentCharges());
+}
+#endif
 static inline unsigned int getOffset(const Prismata::Card &c, int offset) {
   return Action::stateOffset[Card::getBin(c)] + offset;
 }
@@ -202,7 +246,6 @@ std::string vectorToJson(const std::vector<Prismata::Action> &v) {
 
 BOOST_PYTHON_MODULE(_prismataengine) {
   boost::python::numpy::initialize();
-
   boost::python::def("init", &Prismata::InitFromCardLibrary);
   boost::python::def("jsonStrToGameState", &GameState::fromJson,
                      boost::python::return_value_policy<
@@ -239,6 +282,8 @@ BOOST_PYTHON_MODULE(_prismataengine) {
       .value("Gold", 0)    // Prismata::Resources::Gold)
       .value("Energy", 1)  // Prismata::Resources::Energy)
       .value("Blue", 2)    // Prismata::Resources::Blue)
+      .value("Red", 3)    // Prismata::Resources::Red)
+      .value("Green", 4)    // Prismata::Resources::Green)
       .value("Attack", 5); // Prismata::Resources::Attack)
 
   boost::python::enum_<int>("AliveStatus")
@@ -250,12 +295,23 @@ BOOST_PYTHON_MODULE(_prismataengine) {
       .value("BuyEngineer", Action::Abstract::BuyEngineer)
       .value("BuyDrone", Action::Abstract::BuyDrone)
       .value("BuySteelsplitter", Action::Abstract::BuySteelsplitter)
-      .value("BuyBlastforge", Action::Abstract::BuyBlastforge)
+      .value("BuyBlastforge", Action::Abstract::BuyBlastforge)  
+      .value("BuyAnimus", Action::Abstract::BuyAnimus)
+      .value("BuyConduit", Action::Abstract::BuyConduit)
+      .value("BuyWall", Action::Abstract::BuyWall)
+      .value("BuyRhino", Action::Abstract::BuyRhino)
+      .value("BuyTarsier", Action::Abstract::BuyTarsier)
+      .value("BuyForceField", Action::Abstract::BuyForceField)
+      .value("BuyGaussCannon", Action::Abstract::BuyGaussCannon)
       .value("UseAbilityDrone", Action::Abstract::UseAbilityDrone)
+      .value("UseAbilityRhino", Action::Abstract::UseAbilityRhino)
       .value("UseAbilitySteelsplitter",
              Action::Abstract::UseAbilitySteelsplitter)
       .value("AssignBlockerEngineer", Action::Abstract::AssignBlockerEngineer)
       .value("AssignBlockerDrone", Action::Abstract::AssignBlockerDrone)
+      .value("AssignBlockerWall", Action::Abstract::AssignBlockerWall)
+      .value("AssignBlockerRhino", Action::Abstract::AssignBlockerRhino)
+      .value("AssignBlockerForceField", Action::Abstract::AssignBlockerForceField)
       .value("AssignBlockerSteelsplitter",
              Action::Abstract::AssignBlockerSteelsplitter)
       .value("AssignBreachEngineer", Action::Abstract::AssignBreachEngineer)
@@ -263,6 +319,13 @@ BOOST_PYTHON_MODULE(_prismataengine) {
       .value("AssignBreachSteelsplitter",
              Action::Abstract::AssignBreachSteelsplitter)
       .value("AssignBreachBlastforge", Action::Abstract::AssignBreachBlastforge)
+      .value("AssignBreachAnimus", Action::Abstract::AssignBreachAnimus)
+      .value("AssignBreachConduit", Action::Abstract::AssignBreachConduit)
+      .value("AssignBreachWall", Action::Abstract::AssignBreachWall)
+      .value("AssignBreachRhino", Action::Abstract::AssignBreachRhino)
+      .value("AssignBreachTarsier", Action::Abstract::AssignBreachTarsier)
+      .value("AssignBreachForceField", Action::Abstract::AssignBreachForceField)
+      .value("AssignBreachGaussCannon", Action::Abstract::AssignBreachGaussCannon)
       .value("EndPhase", Action::Abstract::EndPhase);
 
   boost::python::enum_<Prismata::PlayerID>("Players")
@@ -381,6 +444,8 @@ BOOST_PYTHON_MODULE(_prismataengine) {
       .def("turnNumber", &Prismata::GameState::getTurnNumber);
 
   boost::python::class_<Prismata::PlayerPtr>("PlayerPtr");
+  
+  boost::python::class_<Prismata::MoveIterator>("MoveIterator")
 
   boost::python::class_<Prismata::Player>("Player")
       .add_property("description", &Prismata::Player::getDescription)
@@ -393,4 +458,3 @@ BOOST_PYTHON_MODULE(_prismataengine) {
       boost::python::init<Prismata::PlayerID>(boost::python::args("playerID")))
       .def("getMove", &Prismata::Player_Random::getMove)
       .def("clone", &Prismata::Player_Random::clone);
-}

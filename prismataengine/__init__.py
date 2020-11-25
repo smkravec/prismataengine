@@ -24,7 +24,7 @@ class ConcreteAction():
         return f"{self.card.name} ({self.card.type}): {ActionType.values[self._action.type]} ({self.type})"
 
 class GameState():
-    def __init__(self, string, player1=None, player2=None):
+    def __init__(self, string, cards=11, player1=None, player2=None):
         self._state = jsonStrToGameState(string)
         self._players = (player1, player2)
         self.inactivePlayer = self._state.inactivePlayer
@@ -34,13 +34,20 @@ class GameState():
         self._toVectorNeedsUpdate = True
         self._move = Move()
         self._cards = CardVector()
-        self._abactions = numpy.zeros(14, dtype=numpy.uintp)
-        self._ie = numpy.zeros(30, dtype=numpy.uint16)
-        self._acvec = numpy.zeros(14, dtype=numpy.bool)
+        self._abactions = numpy.zeros(14 if cards == 4 else 32, dtype=numpy.uintp)
+        self._ie = numpy.zeros(30 if cards == 4 else 82, dtype=numpy.uint16)
+        self._acvec = numpy.zeros(self._abactions.shape[0], dtype=numpy.bool)
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
-        self._abactions_list = [AbstractAction.values[i] for i in range(14) if self._acvec[i]]
+        self._abactions_list = [AbstractAction.values[i] for i in range(self._acvec.shape[0]) if self._acvec[i]]
+        self.toVector = self.toVector4 if cards == 4 else self.toVector11
         if __debug__:
             print("Initialized GameState")
+            
+    '''
+    Virtual method, see __init__
+    '''
+    def toVector(self):
+        pass
 
     def getRawState(self):
         return self._state
@@ -109,7 +116,7 @@ class GameState():
         self._acvec.fill(False)
         self._abactions.fill(0)
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
-        self._abactions_list = [AbstractAction.values[i] for i in range(14) if self._acvec[i]]
+        self._abactions_list = [AbstractAction.values[i] for i in range(self._acvec.shape[0]) if self._acvec[i]]
 
     def doAction(self, action):
         actionPointer = self.coerceAction(action)
@@ -122,7 +129,7 @@ class GameState():
         self._acvec.fill(False)
         self._abactions.fill(0)
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
-        self._abactions_list = [AbstractAction.values[i] for i in range(14) if self._acvec[i]]
+        self._abactions_list = [AbstractAction.values[i] for i in range(self._acvec.shape[0]) if self._acvec[i]]
 
     @lru_cache
     def getCardBuyableById(self, cardid):
@@ -137,7 +144,8 @@ class GameState():
     def winner(self):
         return self._state.winner
 
-    def annotate(self, state):
+    def annotate4(self, state):
+        
         return {
                 "gameOver": bool(self.isGameOver()),
                 "player": Players.values.get(state[0], state[0]),
@@ -173,7 +181,46 @@ class GameState():
                         },
                     },
                 }
-    def toVector(self):
+    
+    def annotate11(self, state):
+        
+        return {
+                "gameOver": bool(self.isGameOver()),
+                "player": Players.values.get(state[0], state[0]),
+                "phase": Phases.values.get(state[1], state[1]),
+                "activePlayer": {
+                    "number": self.activePlayer + 1,
+                    "resources": {
+                        "Gold": state[2],
+                        "Energy": state[3],
+                        "Blue": state[4],
+                        "Attack": state[5],
+                        },
+                    "cards": {
+                        "Drone": (state[6], state[7], state[8]),
+                        "Engineer": (state[9], state[10]),
+                        "Blastforge": (state[11], state[12]),
+                        "Steelsplitter": (state[13], state[14], state[15]),
+                        },
+                    },
+                "inactivePlayer": {
+                    "number": self.inactivePlayer + 1,
+                    "resources": {
+                        "Gold": state[16],
+                        "Energy": state[17],
+                        "Blue": state[18],
+                        "Attack": state[19],
+                        },
+                    "cards": {
+                        "Drone": (state[20], state[21], state[22]),
+                        "Engineer": (state[23], state[24]),
+                        "Blastforge": (state[25], state[26]),
+                        "Steelsplitter": (state[27], state[28], state[29]),
+                        },
+                    },
+                }
+    
+    def toVector4(self):
         if not self._toVectorNeedsUpdate:
             return self._ie
         self._ie[0] = self.activePlayer
@@ -182,6 +229,18 @@ class GameState():
         countCards(self._state, self.activePlayer, 7, self._ie)
         countResources(self._state, self.inactivePlayer, 16, self._ie)
         countCards(self._state, self.inactivePlayer, 21, self._ie)
+        self._toVectorNeedsUpdate = False
+        return self._ie    
+        
+    def toVector11(self):
+        if not self._toVectorNeedsUpdate:
+            return self._ie
+        self._ie[0] = self.activePlayer
+        self._ie[1] = self._state.activePhase
+        countResources(self._state, self.activePlayer, 2, self._ie)
+        countCards(self._state, self.activePlayer, 9, self._ie)
+        countResources(self._state, self.inactivePlayer, 42, self._ie)
+        countCards(self._state, self.inactivePlayer, 49, self._ie)
         self._toVectorNeedsUpdate = False
         return self._ie
 

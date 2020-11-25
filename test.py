@@ -16,23 +16,25 @@ class PythonRandomPlayer(object):
 
 def runGame():
     gamestate = p.GameState('''{
-             "whiteMana":"0HH",
-             "blackMana":"0",
-             "phase":"action",
-             "table":
-             [
-                 {"cardName":"Drone", "color":0, "amount":6},
-                 {"cardName":"Engineer", "color":0, "amount":2},
-                 {"cardName":"Drone", "color":1, "amount":7},
-                 {"cardName":"Engineer", "color":1, "amount":2}
-             ],
-             "cards":["Drone","Engineer","Blastforge","Steelsplitter"]
+                     "whiteMana":"0HH",
+                 "blackMana":"0HH",
+                 "phase":"action",
+                 "table":
+                 [
+                     {"cardName":"Drone", "color":0, "amount":6},
+                     {"cardName":"Engineer", "color":0, "amount":2},
+                     {"cardName":"Drone", "color":1, "amount":7},
+                     {"cardName":"Engineer", "color":1, "amount":2}
+                 ],
+                 "cards":["Drone","Engineer","Blastforge","Animus", "Conduit", "Steelsplitter", "Wall", "Rhino", "Tarsier", "Forcefield", "Gauss Cannon"]
          }''', player1=PythonRandomPlayer(), player2=PythonRandomPlayer())
-    # print('----------------NEW GAME NEW LIFE-------------')
+    print('----------------NEW GAME NEW LIFE-------------')
     lastPlayer = 0
+    i = 0
     while not gamestate.isGameOver():
         # print([(card.type, card.name) for card in gamestate.getLiveCards(gamestate.activePlayer)])
         state = gamestate.toVector()
+        # print(state)
         # print(gamestate.annotate(state))
         if gamestate.activePlayer != lastPlayer:
             lastPlayer = gamestate.activePlayer
@@ -41,10 +43,14 @@ def runGame():
             # print(gamestate.json())
             # time.sleep(0.1)
         gamestate.step()
+        i += 1
+        if i > 10000:
+            break
     print(f"Winner: {gamestate.winner()}")
     state = gamestate.toVector()
-    pprint(gamestate.annotate(state))
-    print(numpy.array_str(state, max_line_width=120))
+    # pprint(gamestate.annotate(state))
+    # pprint(gamestate.json())
+    # print(numpy.array_str(state, max_line_width=120))
 
 n = 100
 # for n in range(n):
