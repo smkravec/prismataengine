@@ -19,25 +19,27 @@ if "PRISMATA_INIT_AI_JSON_PATH" in environ:
 def cslice(array, start, width):
     return array[start:start+width], start+width
 
-class ConcreteAction():
-    def __init__(self, gamestate, action):
-        self._action = action
-        self.type = action.type
-        self.card = action.card(gamestate)
-
-    def __getattr__(self, key):
-        return getattr(self._action, key)
-
-    def __str__(self):
-        return f"{self.card.name} ({self.card.type}): {p.ActionType.values[self._action.type]} ({self.type})"
-
 class GameState():
-    def __init__(self, string, cards=11, player1=None, player2=None, player2json=None):
+    def __init__(self, string, cards=11, player1=None, player2=None, ai_json=None):
+        if cards not in set(4, 11):
+            raise "cards parameter must be set to 4 or 11"
         self._state = p.jsonStrToGameState(string)
-        if player2json:
-            p.initAI(p.player2json)
+        if type(self._state) is not p.PrismataGameState:
+            raise "Failed to load PrismataGameState from JSON"
+        if ai_json:
+            p.initAI(p.ai_json)
+        if type(player1) is str:
+            player1 = p.getAIPlayer(p.Players.One, player1)
+            if not player1:
+                raise "Player 1 not found in loaded AI JSON or AI JSON not loaded"
+        if player1 and not hasattr(player1, "getMove") and not hasattr(player1, "getAction"):
+            raise "Player 1 must implement getMove(PrismataGameState, Move) or getAction(GameState)"
         if type(player2) is str:
             player2 = p.getAIPlayer(p.Players.Two, player2)
+            if not player2:
+                raise "Player 2 not found in loaded AI JSON or AI JSON not loaded"
+        if player2 and not hasattr(player2, "getMove") and not hasattr(player2, "getAction"):
+            raise "Player 2 must implement getMove(PrismataGameState, Move) or getAction(GameState)"
         self._players = (player1, player2)
         self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
@@ -46,11 +48,15 @@ class GameState():
         self._toVectorNeedsUpdate = True
         self._move = p.Move()
         self._cards = p.CardVector()
-        self._abactions = numpy.zeros(14 if cards == 4 else 32, dtype=numpy.uintp)
-        self._ie = numpy.zeros(30 if cards == 4 else 82, dtype=numpy.uint16)
-        self._acvec = numpy.zeros(self._abactions.shape[0], dtype=numpy.bool)
+        self.abstract_actions_available_size = 14 if cards == 4 else 32
+        self.state_size = 30 if cards == 4 else 82
+        self._abactions = numpy.zeros(self.abstract_actions_available_size, dtype=numpy.uintp)
+        self._ie = numpy.zeros(self.state_size, dtype=numpy.uint16)
+        self._acvec = numpy.zeros(self.abstract_actions_available_size, dtype=numpy.bool)
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
-        self._abactions_list = [p.AbstractAction.values[i] for i in range(self._acvec.shape[0]) if self._acvec[i]]
+        self.abstract_actions_list_disabled = player1 and player2 and hasattr(player1, "getMove") and hasattr(player2, "getMove")
+        if not self.abstract_actions_list_disabled:
+            self._abactions_list = [p.AbstractAction.values[i] for i in range(self.abstract_actions_available_size) if self._acvec[i]]
         self.toVector = self.toVector4 if cards == 4 else self.toVector11
         self.annotate  = self.annotate4 if cards == 4 else self.annotate11
         if __debug__:
@@ -97,8 +103,6 @@ class GameState():
             return self._abactions[action]
         elif type(action) == p.AbstractAction:
             return self._abactions[int(action)]
-        elif type(action) == ConcreteAction:
-            return action._action
         elif type(action) == p.PrismataAction:
             return action
         else:
@@ -138,7 +142,8 @@ class GameState():
         self._acvec.fill(False)
         self._abactions.fill(0)
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
-        self._abactions_list = [p.AbstractAction.values[i] for i in range(self._acvec.shape[0]) if self._acvec[i]]
+        if not self.abstract_actions_list_disabled:
+            self._abactions_list = [p.AbstractAction.values[i] for i in range(self.abstract_actions_available_size) if self._acvec[i]]
 
     def doAction(self, action):
         actionPointer = self.coerceAction(action)
@@ -151,7 +156,8 @@ class GameState():
         self._acvec.fill(False)
         self._abactions.fill(0)
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
-        self._abactions_list = [p.AbstractAction.values[i] for i in range(self._acvec.shape[0]) if self._acvec[i]]
+        if not self.abstract_actions_list_disabled:
+            self._abactions_list = [p.AbstractAction.values[i] for i in range(self.abstract_actions_available_size) if self._acvec[i]]
 
     @lru_cache
     def getCardBuyableById(self, cardid):
