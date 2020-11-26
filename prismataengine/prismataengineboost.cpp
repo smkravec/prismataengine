@@ -48,89 +48,71 @@ void generateLegalActions(const Prismata::GameState &g,
     aap[Action::Abstract::EndPhase] = reinterpret_cast<uintptr_t>(&endPhase);
   }
 }
-void cardCounting(const Prismata::GameState &g, const Prismata::PlayerID player,
+void cardCounting4(const Prismata::GameState &g, const Prismata::PlayerID player,
                   int offset, boost::python::numpy::ndarray &n) {
   uint16_t *state =
       reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset);
-  state[0] = 0;
-  state[1] = 0;
-  state[2] = 0;
-  state[3] = 0;
-  state[4] = 0;
-  state[5] = 0;
-  state[6] = 0;
-  state[7] = 0;
-  state[8] = 0;
-  state[9] = 0;
-#ifndef SET_FOUR
-  state[10] = 0;
-    state[11] = 0;
-    state[12] = 0;
-    state[13] = 0;
-    state[14] = 0;
-    state[15]= 0;
-    state[16] = 0;
-    state[17] = 0;
-    state[18] = 0;
-    state[19] = 0;
-    state[10] = 0;
-    state[21] = 0;
-    state[22] = 0;
-    state[23] = 0;
-    state[24] = 0;
-    state[25] = 0;
-    state[26] = 0;
-    state[27] = 0;
-    state[28] = 0;
-    state[29] = 0;
-    state[30] = 0;
-    state[31] = 0;
-    state[32] = 0;
-    state[33] = 0;
-#endif
+  // maxDimension should be 9 for 4-card mode and 33 for 11-card mode
+  for (int i = 0; i < 10; i++) {
+      state[i] = 0;
+  }
   for (const auto &cardID : g.getCardIDs(player)) {
     const Prismata::Card &c = g.getCardByID(cardID);
     // std::cout << Card::toJson(c) << " (" << Card::getBin(c) << ", " << Action::stateOffset[Card::getBin(c)] << ")" << std::endl;
-    state[Action::stateOffset[Card::getBin(c)]] += 1;
+    state[Action::stateOffset4[Card::getBin4(c)]] += 1;
   }
 }
-void copyResources(Prismata::GameState &g, const Prismata::PlayerID p,
+void cardCounting11(const Prismata::GameState &g, const Prismata::PlayerID player,
+                  int offset, boost::python::numpy::ndarray &n) {
+  uint16_t *state =
+      reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset);
+  // maxDimension should be 9 for 4-card mode and 33 for 11-card mode
+  for (int i = 0; i < 34; i++) {
+      state[i] = 0;
+  }
+  for (const auto &cardID : g.getCardIDs(player)) {
+    const Prismata::Card &c = g.getCardByID(cardID);
+    // std::cout << Card::toJson(c) << " (" << Card::getBin(c) << ", " << Action::stateOffset[Card::getBin(c)] << ")" << std::endl;
+    state[Action::stateOffset11[Card::getBin11(c)]] += 1;
+  }
+}
+void copyResources4(Prismata::GameState &g, const Prismata::PlayerID p,
                    int offset, boost::python::numpy::ndarray &n) {
   uint16_t *state =
       reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset);
   const Prismata::Resources &r = g.getResources(p);
-#ifdef SET_FOUR
   state[0] = r.amountOf(Prismata::Resources::Gold);
   state[1] = r.amountOf(Prismata::Resources::Energy);
   state[2] = r.amountOf(Prismata::Resources::Blue);
   state[3] = r.amountOf(Prismata::Resources::Attack);
-#else
+}
+void copyResources11(Prismata::GameState &g, const Prismata::PlayerID p,
+                   int offset, boost::python::numpy::ndarray &n) {
+  uint16_t *state =
+      reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset);
+  const Prismata::Resources &r = g.getResources(p);
   state[0] = r.amountOf(Prismata::Resources::Gold);
   state[1] = r.amountOf(Prismata::Resources::Energy);
   state[2] = r.amountOf(Prismata::Resources::Blue);
   state[3] = r.amountOf(Prismata::Resources::Red);
   state[4] = r.amountOf(Prismata::Resources::Green);
   state[5] = r.amountOf(Prismata::Resources::Attack);
-#endif
 }
 }; // namespace GameState
 
 namespace Card {
 std::string toJson(const Prismata::Card &c) { return c.toJSONString(true); }
-#ifdef SET_FOUR
-static inline unsigned int getBin(const Prismata::Card &c) {
+static inline unsigned int getBin4(const Prismata::Card &c) {
   return (c.getType().getID() << 2) | (c.isUnderConstruction() << 1) |
          (c.canBlock());
 }
-#else
-static inline unsigned int getBin(const Prismata::Card &c) {
+static inline unsigned int getBin11(const Prismata::Card &c) {
   return (c.getType().getID() << 8) | (c.getConstructionTime() << 6) |
          (c.canBlock() << 5) | (c.currentHealth() << 2) | (c.getCurrentCharges());
 }
-#endif
-static inline unsigned int getOffset(const Prismata::Card &c, int offset) {
+/* static inline unsigned int getOffset(const Prismata::Card &c, int offset) {
   return Action::stateOffset[Card::getBin(c)] + offset;
-}
+} */
 size_t getBuyableTypeId(const Prismata::CardBuyable &c) {
   return c.getType().getID();
 }
@@ -265,8 +247,10 @@ BOOST_PYTHON_MODULE(_prismataengine) {
                          boost::python::return_by_value>());
   boost::python::def("initAI", &playerFactoryInit);
 
-  boost::python::def("countCards", &GameState::cardCounting);
-  boost::python::def("countResources", &GameState::copyResources);
+  boost::python::def("countCards4", &GameState::cardCounting4);
+  boost::python::def("countCards11", &GameState::cardCounting11);
+  boost::python::def("countResources4", &GameState::copyResources4);
+  boost::python::def("countResources11", &GameState::copyResources11);
   boost::python::def("getMove", &Player::getMove, boost::python::args("p", "g", "m"));
   
   boost::python::enum_<Prismata::ActionID>("ActionType")
@@ -354,7 +338,8 @@ BOOST_PYTHON_MODULE(_prismataengine) {
       .def("__str__", &Card::buyableStringify);
 
   boost::python::class_<Prismata::Card>("Card")
-      .add_property("bin", &Card::getBin)
+      .add_property("bin4", &Card::getBin4)
+      .add_property("bin11", &Card::getBin11)
       .add_property("canBlock", &Prismata::Card::canBlock)
       .add_property("charge", &Prismata::Card::getCurrentCharges)
       .add_property("constructionTime", &Prismata::Card::getConstructionTime)
@@ -371,7 +356,7 @@ BOOST_PYTHON_MODULE(_prismataengine) {
       .def(boost::python::init<std::string>())
       .def("__eq__", &Prismata::Card::operator==)
       .def("__lt__", &Prismata::Card::operator<)
-      .def("offset", &Card::getOffset)
+      // .def("offset", &Card::getOffset)
       .def("__str__", &Card::toJson);
 
   boost::python::class_<Prismata::Action>("PrismataAction")

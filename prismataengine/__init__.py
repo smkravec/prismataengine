@@ -49,6 +49,7 @@ class GameState():
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
         self._abactions_list = [p.AbstractAction.values[i] for i in range(self._acvec.shape[0]) if self._acvec[i]]
         self.toVector = self.toVector4 if cards == 4 else self.toVector11
+        self.annotate  = self.annotate4 if cards == 4 else self.annotate11
         if __debug__:
             print("Initialized GameState")
             
@@ -56,6 +57,12 @@ class GameState():
     Virtual method, see __init__
     '''
     def toVector(self):
+        pass
+
+    '''
+    Virtual method, see __init__
+    '''
+    def annotate(self, state):
         pass
 
     def getRawState(self):
@@ -237,10 +244,10 @@ class GameState():
             return self._ie
         self._ie[0] = self.activePlayer
         self._ie[1] = self._state.activePhase
-        p.countResources(self._state, self.activePlayer, 2, self._ie)
-        p.countCards(self._state, self.activePlayer, 7, self._ie)
-        p.countResources(self._state, self.inactivePlayer, 16, self._ie)
-        p.countCards(self._state, self.inactivePlayer, 21, self._ie)
+        p.countResources4(self._state, self.activePlayer, 2, self._ie)
+        p.countCards4(self._state, self.activePlayer, 7, self._ie)
+        p.countResources4(self._state, self.inactivePlayer, 16, self._ie)
+        p.countCards4(self._state, self.inactivePlayer, 21, self._ie)
         self._toVectorNeedsUpdate = False
         return self._ie    
         
@@ -249,10 +256,10 @@ class GameState():
             return self._ie
         self._ie[0] = self.activePlayer
         self._ie[1] = self._state.activePhase
-        countResources(self._state, self.activePlayer, 2, self._ie)
-        countCards(self._state, self.activePlayer, 9, self._ie)
-        countResources(self._state, self.inactivePlayer, 42, self._ie)
-        countCards(self._state, self.inactivePlayer, 49, self._ie)
+        p.countResources11(self._state, self.activePlayer, 2, self._ie)
+        p.countCards11(self._state, self.activePlayer, 9, self._ie)
+        p.countResources11(self._state, self.inactivePlayer, 42, self._ie)
+        p.countCards11(self._state, self.inactivePlayer, 49, self._ie)
         self._toVectorNeedsUpdate = False
         return self._ie
 

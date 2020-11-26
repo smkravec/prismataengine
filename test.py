@@ -15,6 +15,8 @@ class PythonRandomPlayer(object):
         return action
 
 def runGame():
+    if __debug__:
+        print('----------------NO GAME NO LIFE-------------')
     gamestate = p.GameState('''{
                      "whiteMana":"0HH",
                  "blackMana":"0HH",
@@ -26,9 +28,10 @@ def runGame():
                      {"cardName":"Drone", "color":1, "amount":7},
                      {"cardName":"Engineer", "color":1, "amount":2}
                  ],
-                 "cards":["Drone","Engineer","Blastforge","Animus", "Conduit", "Steelsplitter", "Wall", "Rhino", "Tarsier", "Forcefield", "Gauss Cannon"]
-         }''', player1=PythonRandomPlayer(), player2=PythonRandomPlayer())
-    print('----------------NEW GAME NEW LIFE-------------')
+                 "cards":["Drone","Engineer","Blastforge","Steelsplitter"]
+         }''', cards=4, player1=PythonRandomPlayer(), player2="EasyAI")
+    if __debug__:
+        print('----------------NEW GAME NEW LIFE-------------')
     lastPlayer = 0
     i = 0
     while not gamestate.isGameOver():
@@ -47,8 +50,9 @@ def runGame():
         if i > 10000:
             break
     print(f"Winner: {gamestate.winner()}")
-    state = gamestate.toVector()
-    # pprint(gamestate.annotate(state))
+    # state = gamestate.toVector()
+    if __debug__:
+        pprint(gamestate.annotate(state))
     # pprint(gamestate.json())
     # print(numpy.array_str(state, max_line_width=120))
 
