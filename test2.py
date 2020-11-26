@@ -1,3 +1,4 @@
+from pprint import pprint
 import prismataengine
 gamestate = prismataengine.GameState('''{
                  "whiteMana":"0HH",
@@ -10,9 +11,11 @@ gamestate = prismataengine.GameState('''{
                      {"cardName":"Drone", "color":1, "amount":7},
                      {"cardName":"Engineer", "color":1, "amount":2}
                  ],
-                 "cards":["Drone","Engineer","Blastforge","Animus", "Conduit", "Steelsplitter", "Wall", "Rhino", "Tarsier", "Forcefield", "Gauss Cannon"]
-             }''')
+                 "cards":["Drone","Engineer","Blastforge", "Steelsplitter"]
+             }''', cards=4)
 print(gamestate.toVector())
+pprint(gamestate.annotate(gamestate.toVector()))
+print(gamestate.json())
 gamestate = prismataengine.GameState('''{
                  "whiteMana":"0HH",
                  "blackMana":"0HH",
@@ -32,4 +35,5 @@ gamestate = prismataengine.GameState('''{
                  "cards":["Drone","Engineer","Blastforge","Animus", "Conduit", "Steelsplitter", "Wall", "Rhino", "Tarsier", "Forcefield", "Gauss Cannon"]
              }''')
 print(gamestate.toVector())
-print(gamestate.json())
+pprint(gamestate.annotate(gamestate.toVector()))
+# print(gamestate.json())

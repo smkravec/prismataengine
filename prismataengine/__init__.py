@@ -16,6 +16,9 @@ if "PRISMATA_INIT_AI_JSON_PATH" in environ:
         with open(environ.get("PRISMATA_INIT_AI_JSON_PATH")) as f:
             p.initAI(f.read())
 
+def cslice(array, start, width):
+    return array[start:start+width], start+width
+
 class ConcreteAction():
     def __init__(self, gamestate, action):
         self._action = action
@@ -32,7 +35,7 @@ class GameState():
     def __init__(self, string, cards=11, player1=None, player2=None, player2json=None):
         self._state = p.jsonStrToGameState(string)
         if player2json:
-            p.initAI(playerjson)
+            p.initAI(p.player2json)
         if type(player2) is str:
             player2 = p.getAIPlayer(p.Players.Two, player2)
         self._players = (player1, player2)
@@ -55,15 +58,15 @@ class GameState():
             
     '''
     Virtual method, see __init__
-    '''
     def toVector(self):
         pass
+    '''
 
     '''
     Virtual method, see __init__
-    '''
     def annotate(self, state):
         pass
+    '''
 
     def getRawState(self):
         return self._state
@@ -164,7 +167,6 @@ class GameState():
         return self._state.winner
 
     def annotate4(self, state):
-        
         return {
                 "gameOver": bool(self.isGameOver()),
                 "player": p.Players.values.get(state[0], state[0]),
@@ -200,45 +202,43 @@ class GameState():
                         },
                     },
                 }
-    
+
     def annotate11(self, state):
-        
-        return {
-                "gameOver": bool(self.isGameOver()),
-                "player": Players.values.get(state[0], state[0]),
-                "phase": Phases.values.get(state[1], state[1]),
-                "activePlayer": {
-                    "number": self.activePlayer + 1,
-                    "resources": {
-                        "Gold": state[2],
-                        "Energy": state[3],
-                        "Blue": state[4],
-                        "Attack": state[5],
-                        },
-                    "cards": {
-                        "Drone": (state[6], state[7], state[8]),
-                        "Engineer": (state[9], state[10]),
-                        "Blastforge": (state[11], state[12]),
-                        "Steelsplitter": (state[13], state[14], state[15]),
-                        },
-                    },
-                "inactivePlayer": {
-                    "number": self.inactivePlayer + 1,
-                    "resources": {
-                        "Gold": state[16],
-                        "Energy": state[17],
-                        "Blue": state[18],
-                        "Attack": state[19],
-                        },
-                    "cards": {
-                        "Drone": (state[20], state[21], state[22]),
-                        "Engineer": (state[23], state[24]),
-                        "Blastforge": (state[25], state[26]),
-                        "Steelsplitter": (state[27], state[28], state[29]),
-                        },
-                    },
-                }
-    
+        stateStruct = {}
+        stateStruct["player"] = p.Players.values.get(state[0])
+        stateStruct["phase"] = p.Phases.values.get(state[1])
+        i = 2
+        player = "activePlayer"
+        stateStruct[player] = {"resources": {}, "cards": {}}
+        [stateStruct[player]["resources"]["Gold"], stateStruct[player]["resources"]["Energy"], stateStruct[player]["resources"]["Blue"], stateStruct[player]["resources"]["Red"], stateStruct[player]["resources"]["Green"], stateStruct[player]["resources"]["Attack"]], i = cslice(state, i, 6)
+        stateStruct[player]["cards"]["Drone"], i = cslice(state, i, 3)
+        stateStruct[player]["cards"]["Engineer"], i = cslice(state, i, 2)
+        stateStruct[player]["cards"]["Blastforge"], i = cslice(state, i, 2)
+        stateStruct[player]["cards"]["Animus"], i = cslice(state, i, 2)
+        stateStruct[player]["cards"]["Conduit"], i = cslice(state, i, 4)
+        stateStruct[player]["cards"]["Steelsplitter"], i = cslice(state, i, 3)
+        stateStruct[player]["cards"]["Wall"], i = cslice(state, i, 1)
+        stateStruct[player]["cards"]["Rhino"], i = cslice(state, i, 6)
+        stateStruct[player]["cards"]["Tarsier"], i = cslice(state, i, 3)
+        stateStruct[player]["cards"]["Forcefield"], i = cslice(state, i, 2)
+        stateStruct[player]["cards"]["Gauss Cannon"], i = cslice(state, i, 6)
+        player = "inactivePlayer"
+        stateStruct[player] = {"resources": {}, "cards": {}}
+        [stateStruct[player]["resources"]["Gold"], stateStruct[player]["resources"]["Energy"], stateStruct[player]["resources"]["Blue"], stateStruct[player]["resources"]["Red"], stateStruct[player]["resources"]["Green"], stateStruct[player]["resources"]["Attack"]], i = cslice(state, i, 6)
+        stateStruct[player]["cards"]["Drone"], i = cslice(state, i, 3)
+        stateStruct[player]["cards"]["Engineer"], i = cslice(state, i, 2)
+        stateStruct[player]["cards"]["Blastforge"], i = cslice(state, i, 2)
+        stateStruct[player]["cards"]["Animus"], i = cslice(state, i, 2)
+        stateStruct[player]["cards"]["Conduit"], i = cslice(state, i, 4)
+        stateStruct[player]["cards"]["Steelsplitter"], i = cslice(state, i, 3)
+        stateStruct[player]["cards"]["Wall"], i = cslice(state, i, 1)
+        stateStruct[player]["cards"]["Rhino"], i = cslice(state, i, 6)
+        stateStruct[player]["cards"]["Tarsier"], i = cslice(state, i, 3)
+        stateStruct[player]["cards"]["Forcefield"], i = cslice(state, i, 2)
+        stateStruct[player]["cards"]["Gauss Cannon"], i = cslice(state, i, 6)
+        print(i)
+        return stateStruct
+ 
     def toVector4(self):
         if not self._toVectorNeedsUpdate:
             return self._ie
