@@ -34,16 +34,16 @@ void generateLegalActions(const Prismata::GameState &g,
                           boost::python::numpy::ndarray acv,
                           const boost::python::numpy::ndarray aa,
                           Prismata::Action &endPhase) {
-  bool *acvp = reinterpret_cast<bool *>(acv.get_data());
-  uintptr_t *aap = reinterpret_cast<uintptr_t *>(aa.get_data());
+  bool *acvp = reinterpret_cast<bool *>(acv.get_data()); //Extract vector of Booleans which are the abstract legal actions
+  uintptr_t *aap = reinterpret_cast<uintptr_t *>(aa.get_data()); //Extract unsigned integer pointer width type for storing *Prismata::Action
   av.clear();
-  g.generateLegalActions(av);
+  g.generateLegalActions(av); //This is the output of the Prismata Gamestate engine code
   for (size_t i = 0; i < av.size(); i++) {
-    int o = fromActionDispatch[av[i].getType()][Action::getCardType(av[i], g)];
+    int o = fromActionDispatch[av[i].getType()][Action::getCardType(av[i], g)]; //fromActionDispatch maps (card/buy type, action) to an offset o in O(1)
     acvp[o] = true;
-    aap[o] = reinterpret_cast<uintptr_t>(&av[i]);
+    aap[o] = reinterpret_cast<uintptr_t>(&av[i]);//Stores pointer to a valid action that satisfies abstract action condition
   }
-  if (g.isLegal(endPhase)) {
+  if (g.isLegal(endPhase)) { //endPhase needs to be special cased because of frailties in the Prismata Engine code
     acvp[Action::Abstract::EndPhase] = true;
     aap[Action::Abstract::EndPhase] = reinterpret_cast<uintptr_t>(&endPhase);
   }
@@ -69,19 +69,20 @@ void cardCounting11(const Prismata::GameState &g, const Prismata::PlayerID playe
   // maxDimension should be 9 for 4-card mode and 33 for 11-card mode
   for (int i = 0; i < 34; i++) {
       state[i] = 0;
-  }
-  for (const auto &cardID : g.getCardIDs(player)) {
-    const Prismata::Card &c = g.getCardByID(cardID);
+  } //Clear everything
+  for (const auto &cardID : g.getCardIDs(player)) { //Gets a vector of cardIDs for a player in a gamestate
+    const Prismata::Card &c = g.getCardByID(cardID); //Convert to actual card object
     // std::cout << Card::toJson(c) << " (" << Card::getBin(c) << ", " << Action::stateOffset[Card::getBin(c)] << ")" << std::endl;
     state[Action::stateOffset11[Card::getBin11(c)]] += 1;
   }
 }
 void copyResources4(Prismata::GameState &g, const Prismata::PlayerID p,
                    int offset, boost::python::numpy::ndarray &n) {
+//Converts integer/logical offset to a memory offset and then adds it to relative
   uint16_t *state =
-      reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset);
+      reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset); 
   const Prismata::Resources &r = g.getResources(p);
-  state[0] = r.amountOf(Prismata::Resources::Gold);
+  state[0] = r.amountOf(Prismata::Resources::Gold); //Starts at zero because of our pointer logic and avoids seperate additions
   state[1] = r.amountOf(Prismata::Resources::Energy);
   state[2] = r.amountOf(Prismata::Resources::Blue);
   state[3] = r.amountOf(Prismata::Resources::Attack);
@@ -100,12 +101,12 @@ void copyResources11(Prismata::GameState &g, const Prismata::PlayerID p,
 }
 }; // namespace GameState
 
-namespace Card {
+namespace Card { 
 std::string toJson(const Prismata::Card &c) { return c.toJSONString(true); }
-static inline unsigned int getBin4(const Prismata::Card &c) {
+static inline unsigned int getBin4(const Prismata::Card &c) { //Construct bin index in our lookup table from the card
   return (c.getType().getID() << 2) | (c.isUnderConstruction() << 1) |
          (c.canBlock());
-}
+}//Shift ID bits 2 to the left, bitwise OR, underConstrion 1 to the left, bitwise OR, canBlock
 static inline unsigned int getBin11(const Prismata::Card &c) {
   return (c.getType().getID() << 8) | (c.getConstructionTime() << 6) |
          (c.canBlock() << 5) | (c.currentHealth() << 2) | (c.getCurrentCharges());
@@ -187,7 +188,7 @@ getCard(const Prismata::Action &a, const Prismata::GameState &g) {
 
 size_t getCardType(const Prismata::Action &a, const Prismata::GameState &g) {
   return a.getType() == Prismata::ActionTypes::BUY
-             ? g.getCardBuyableByID(a.getID()).getType().getID()
+             ? g.getCardBuyableByID(a.getID()).getType().getID() //Buyable types are different than card types for labelling Prismata::Actions
              : g.getCardByID(a.getID()).getType().getID();
 }
 

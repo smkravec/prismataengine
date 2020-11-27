@@ -2,9 +2,11 @@ import enum
 import numpy
 from os import environ
 from functools import lru_cache
-from _prismataengine import *
+from _prismataengine import * #Imports all exported methods from boost
 import _prismataengine as p
 from importlib import resources
+
+#Needs these files in environment path, init and initAI defined in prismataengineboost
 if "PRISMATA_INIT_CARD_PATH" in environ:
     if environ.get("PRISMATA_INIT_CARD_PATH", None):
         p.init(environ.get("PRISMATA_INIT_CARD_PATH", None))
@@ -16,45 +18,47 @@ if "PRISMATA_INIT_AI_JSON_PATH" in environ:
         with open(environ.get("PRISMATA_INIT_AI_JSON_PATH")) as f:
             p.initAI(f.read())
 
+#For creating annotation of state
 def cslice(array, start, width):
     return array[start:start+width], start+width
 
 class GameState():
-    def __init__(self, string, cards=11, player1=None, player2=None, ai_json=None):
-        if cards not in set(4, 11):
-            raise "cards parameter must be set to 4 or 11"
-        self._state = p.jsonStrToGameState(string)
+    def __init__(self, game_string, cards=11, player1=None, player2=None, ai_json=None):
+        if cards not in (4, 11):
+            raise Exception("cards parameter must be set to 4 or 11")
+        self._state = p.jsonStrToGameState(game_string)
         if type(self._state) is not p.PrismataGameState:
-            raise "Failed to load PrismataGameState from JSON"
+            raise Exception("Failed to load PrismataGameState from JSON")
         if ai_json:
             p.initAI(p.ai_json)
-        if type(player1) is str:
+        if type(player1) is str: #String values indicate pulling existing AI players from "PRISMATA_INIT_AI_JSON_PATH"
             player1 = p.getAIPlayer(p.Players.One, player1)
             if not player1:
-                raise "Player 1 not found in loaded AI JSON or AI JSON not loaded"
-        if player1 and not hasattr(player1, "getMove") and not hasattr(player1, "getAction"):
-            raise "Player 1 must implement getMove(PrismataGameState, Move) or getAction(GameState)"
+                raise Exception("Player 1 not found in loaded AI JSON or AI JSON not loaded")
+        if player1 and not hasattr(player1, "getMove") and not hasattr(player1, "getAction") and type(player1) is not p.PrismataPlayer:
+            raise Exception("Player 1 must implement getMove(PrismataGameState, Move) or getAction(GameState) or be a PrismataPlayer pointer")
         if type(player2) is str:
             player2 = p.getAIPlayer(p.Players.Two, player2)
             if not player2:
-                raise "Player 2 not found in loaded AI JSON or AI JSON not loaded"
-        if player2 and not hasattr(player2, "getMove") and not hasattr(player2, "getAction"):
-            raise "Player 2 must implement getMove(PrismataGameState, Move) or getAction(GameState)"
+                raise Exception("Player 2 not found in loaded AI JSON or AI JSON not loaded")
+        if player2 and not hasattr(player2, "getMove") and not hasattr(player2, "getAction") and type(player2) is not p.PrismataPlayer:
+            raise Exception(f"Player 2 must implement getMove(PrismataGameState, Move) or getAction(GameState) or be a PrismataPlayer pointer")
         self._players = (player1, player2)
         self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
-        self.endPhase = p.PrismataAction(self.activePlayer, p.ActionType.END_PHASE, 0)
-        self._actions = p.PrismataActions()
+        self.endPhase = p.PrismataAction(self.activePlayer, p.ActionType.END_PHASE, 0) 
+        self._actions = p.PrismataActions() #std::vector of PrismataActions
         self._toVectorNeedsUpdate = True
         self._move = p.Move()
-        self._cards = p.CardVector()
+        self._cards = p.CardVector() #std::vector of Cards
         self.abstract_actions_available_size = 14 if cards == 4 else 32
         self.state_size = 30 if cards == 4 else 82
-        self._abactions = numpy.zeros(self.abstract_actions_available_size, dtype=numpy.uintp)
+        self._abactions = numpy.zeros(self.abstract_actions_available_size, dtype=numpy.uintp) #Array of pointers to Prismata::Actions
         self._ie = numpy.zeros(self.state_size, dtype=numpy.uint16)
-        self._acvec = numpy.zeros(self.abstract_actions_available_size, dtype=numpy.bool)
+        self._acvec = numpy.zeros(self.abstract_actions_available_size, dtype=numpy.bool) #Actual boolean vector encoding legal abstract actions
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
-        self.abstract_actions_list_disabled = player1 and player2 and hasattr(player1, "getMove") and hasattr(player2, "getMove")
+        #Agents from upstream don't need abstract actions
+        self.abstract_actions_list_disabled = player1 and player2 and type(player1) is p.PrismataPlayer and type(player2) is p.PrismataPlayer
         if not self.abstract_actions_list_disabled:
             self._abactions_list = [p.AbstractAction.values[i] for i in range(self.abstract_actions_available_size) if self._acvec[i]]
         self.toVector = self.toVector4 if cards == 4 else self.toVector11
@@ -97,7 +101,8 @@ class GameState():
 
     def getAction(self, abstractaction):
         return self._abactions[abstractaction]
-
+    
+    #Accepts a variety of types and ways of referring to an abstract action
     def coerceAction(self, action):
         if type(action) == int:
             return self._abactions[action]
@@ -110,7 +115,8 @@ class GameState():
 
     def step(self):
         saveActivePlayer = self.activePlayer
-        if self._players[self.activePlayer] and type(self._players[self.activePlayer]) == p.PrismataPlayer:
+        #PrismataPlayers do whole moves which are sequences of actions taken within a turn
+        if self._players[self.activePlayer] and type(self._players[self.activePlayer]) == p.PrismataPlayer: 
             while saveActivePlayer == self.activePlayer and not self.isGameOver():
                 self._move.clear()
                 p.getMove(self._players[self.activePlayer], self._state, self._move)
@@ -119,6 +125,7 @@ class GameState():
                 self.doMove(self._move)
             return True
         elif self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getAction"):
+            #Other agents we assume have just an action method 
             if __debug__:
                 print(f"Player {1+self.activePlayer} Move: ", end="")
             while saveActivePlayer == self.activePlayer and not self.isGameOver():
@@ -130,17 +137,20 @@ class GameState():
                 print("")
             return True
         else:
+            #Couldn't do an action, dump debug info
             print(type(self._players[self.activePlayer]), dir(self._players[self.activePlayer]), self._players[self.activePlayer])
             return False
 
     def doMove(self, move):
         self._state.doMove(move)
         self._toVectorNeedsUpdate = True
-        self.inactivePlayer = self._state.inactivePlayer
+        #Reset active and inactive players
+        self.inactivePlayer = self._state.inactivePlayer 
         self.activePlayer = self._state.activePlayer
+        #Create new endPhase action with new active player
         self.endPhase = p.PrismataAction(self.activePlayer, p.ActionType.END_PHASE, 0)
-        self._acvec.fill(False)
-        self._abactions.fill(0)
+        self._acvec.fill(False) #Clear list of abstract actions 
+        self._abactions.fill(0) #Reset list of abstractAction offsets that map to prismataAction pointers
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
         if not self.abstract_actions_list_disabled:
             self._abactions_list = [p.AbstractAction.values[i] for i in range(self.abstract_actions_available_size) if self._acvec[i]]
@@ -242,7 +252,6 @@ class GameState():
         stateStruct[player]["cards"]["Tarsier"], i = cslice(state, i, 3)
         stateStruct[player]["cards"]["Forcefield"], i = cslice(state, i, 2)
         stateStruct[player]["cards"]["Gauss Cannon"], i = cslice(state, i, 6)
-        print(i)
         return stateStruct
  
     def toVector4(self):
@@ -250,7 +259,7 @@ class GameState():
             return self._ie
         self._ie[0] = self.activePlayer
         self._ie[1] = self._state.activePhase
-        p.countResources4(self._state, self.activePlayer, 2, self._ie)
+        p.countResources4(self._state, self.activePlayer, 2, self._ie) #The number is an offset beginning
         p.countCards4(self._state, self.activePlayer, 7, self._ie)
         p.countResources4(self._state, self.inactivePlayer, 16, self._ie)
         p.countCards4(self._state, self.inactivePlayer, 21, self._ie)
