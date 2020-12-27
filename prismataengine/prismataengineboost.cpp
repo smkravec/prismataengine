@@ -1,9 +1,22 @@
 #include "prismataengineboost.h"
 
 namespace Player {
-void getMove(std::shared_ptr<Prismata::Player> p, const Prismata::GameState &g,
+void getMove(Prismata::PlayerPtr p, const Prismata::GameState &g,
              Prismata::Move &m) {
   (*p).getMove(g, m);
+}
+
+void Player_Python::getMove_default(const Prismata::GameState & state, Prismata::Move & move)
+{
+    PRISMATA_ASSERT(0, "Prismata::Engine::Player_Python::getMove_default: Method is a stub, please override.");
+}
+std::string Player_Python::getDescription() 
+{
+    return m_description;
+}
+void Player_Python::getMove(const Prismata::GameState & state, Prismata::Move & move)
+{
+    return boost::python::call_method<void>(self, "getMove", boost::ref(state), boost::ref(move));
 }
 
 }; // namespace Player
@@ -12,10 +25,14 @@ namespace GameState {
 Prismata::GameState *fromJson(const std::string &json_str) {
   rapidjson::Document document;
   bool parsingFailed = document.Parse(json_str.c_str()).HasParseError();
+  PRISMATA_ASSERT(!parsingFailed, "Prismata::GameState::fromJson: parsing failed.");
   return new Prismata::GameState(document);
 }
+Prismata::Action & unsafeIntToAction(uintptr_t a) {
+  return *(reinterpret_cast<Prismata::Action*>(a));
+}
 bool doActionInt(Prismata::GameState &g, uintptr_t a) {
-  return g.doAction(*(reinterpret_cast<Prismata::Action*>(a)));
+  return g.doAction(unsafeIntToAction(a));
 }
 Prismata::CardVector &getPlayerCards(const Prismata::GameState &g,
                                      const Prismata::PlayerID player,
@@ -58,7 +75,7 @@ void cardCounting4(const Prismata::GameState &g, const Prismata::PlayerID player
   }
   for (const auto &cardID : g.getCardIDs(player)) {
     const Prismata::Card &c = g.getCardByID(cardID);
-    // std::cout << Card::toJson(c) << " (" << Card::getBin(c) << ", " << Action::stateOffset[Card::getBin(c)] << ")" << std::endl;
+    // std::cout << offset+Action::stateOffset4[Card::getBin4(c)] << std::endl;
     state[Action::stateOffset4[Card::getBin4(c)]] += 1;
   }
 }
@@ -67,7 +84,7 @@ void cardCounting11(const Prismata::GameState &g, const Prismata::PlayerID playe
   uint16_t *state =
       reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset);
   // maxDimension should be 9 for 4-card mode and 33 for 11-card mode
-  for (int i = 0; i < 34; i++) {
+  for (int i = 0; i < 33; i++) {
       state[i] = 0;
   } //Clear everything
   for (const auto &cardID : g.getCardIDs(player)) { //Gets a vector of cardIDs for a player in a gamestate
@@ -98,6 +115,44 @@ void copyResources11(Prismata::GameState &g, const Prismata::PlayerID p,
   state[3] = r.amountOf(Prismata::Resources::Red);
   state[4] = r.amountOf(Prismata::Resources::Green);
   state[5] = r.amountOf(Prismata::Resources::Attack);
+}
+void oneHot4(boost::python::numpy::ndarray &in, boost::python::numpy::ndarray &out){
+ uint16_t *smol =
+      reinterpret_cast<uint16_t *>(in.get_data());
+ uint16_t *lorg =
+      reinterpret_cast<uint16_t *>(out.get_data());
+for (int l = 0; l < 640+30; l++) {
+    lorg[l] = 0;
+}
+ int j =0;
+    for (int i = 0; i < 30; i++) {
+        if (smol[i] > ohTable4[i]) {
+            smol[i] = ohTable4[i];
+        }
+	// std::cout << "Writing to " << j+smol[i] << std::endl;
+        lorg[j+smol[i]] = 1;
+        j += ohTable4[i]+1;
+    }
+}
+
+    
+void oneHot11(boost::python::numpy::ndarray &in, boost::python::numpy::ndarray &out){
+ uint16_t *smol =
+      reinterpret_cast<uint16_t *>(in.get_data());
+ uint16_t *lorg =
+      reinterpret_cast<uint16_t *>(out.get_data());
+for (int l = 0; l < 1160+82; l++) {
+    lorg[l] = 0;
+}
+ int j =0;
+    for (int i = 0 ; i < 82; i++) {
+        if (smol[i] > ohTable11[i]) {
+            smol[i] = ohTable11[i];
+        }
+	// std::cout << "Writing to " << j+smol[i] << std::endl;
+        lorg[j+smol[i]] = 1;
+        j += ohTable11[i]+1;
+    }
 }
 }; // namespace GameState
 
@@ -228,14 +283,23 @@ std::string vectorToJson(const std::vector<Prismata::Action> &v) {
 
 } // namespace Action
 
+static Prismata::AIParameters & AIParametersInstance() {
+    return Prismata::AIParameters::Instance();
+}
+
 void playerFactoryInit(const std::string & s) {
-    Prismata::AIParameters::Instance().parseJSONString(s);
+    AIParametersInstance().parseJSONString(s);
+}
+
+void addPlayer(std::string s, Prismata::Player & p) {
+    AIParametersInstance()._playerNames.push_back(s);
+    AIParametersInstance()._playerMap[Prismata::Players::Player_One][s] = p.clone();
+    AIParametersInstance()._playerMap[Prismata::Players::Player_Two][s] = p.clone();
 }
 
 const std::shared_ptr<Prismata::Player> playerFactory(const Prismata::PlayerID p, const std::string & playerName) {
-    return Prismata::AIParameters::Instance().getPlayer(p, playerName);
+    return AIParametersInstance().getPlayer(p, playerName);
 }
-
 BOOST_PYTHON_MODULE(_prismataengine) {
   boost::python::numpy::initialize();
   boost::python::def("init", &Prismata::InitFromCardLibrary);
@@ -247,12 +311,21 @@ BOOST_PYTHON_MODULE(_prismataengine) {
                      boost::python::return_value_policy<
                          boost::python::return_by_value>());
   boost::python::def("initAI", &playerFactoryInit);
+  boost::python::def("AIParameters", &AIParametersInstance,
+           boost::python::return_value_policy<
+               boost::python::reference_existing_object>());
+  boost::python::def("addPlayer", &addPlayer);
 
   boost::python::def("countCards4", &GameState::cardCounting4);
   boost::python::def("countCards11", &GameState::cardCounting11);
   boost::python::def("countResources4", &GameState::copyResources4);
   boost::python::def("countResources11", &GameState::copyResources11);
+  boost::python::def("oneHot4", &GameState::oneHot4);
+  boost::python::def("oneHot11", &GameState::oneHot11);
   boost::python::def("getMove", &Player::getMove, boost::python::args("p", "g", "m"));
+  boost::python::def("unsafeIntToAction", &GameState::unsafeIntToAction,
+           boost::python::return_value_policy<
+               boost::python::reference_existing_object>());
   
   boost::python::enum_<Prismata::ActionID>("ActionType")
       .value("BUY", Prismata::ActionTypes::BUY)
@@ -442,7 +515,21 @@ BOOST_PYTHON_MODULE(_prismataengine) {
       .def("setStartingState", &Prismata::GameState::setStartingState)
       .def("__str__", &Prismata::GameState::getStateString)
       .def("turnNumber", &Prismata::GameState::getTurnNumber);
+
   boost::python::class_<Prismata::Player, boost::noncopyable>("PrismataPlayer", boost::python::no_init);
   boost::python::register_ptr_to_python< std::shared_ptr<Prismata::Player> >();
+
+  boost::python::class_<Prismata::Player, Player::Player_Python, boost::noncopyable>("PrismataPlayerPython")
+      .def(boost::python::init<Prismata::PlayerID>())
+      .def("getMove", &Prismata::Player::getMove, &Player::Player_Python::getMove)
+      .def("clone", &Prismata::Player::clone, &Player::Player_Python::clone, boost::python::return_value_policy<
+			  boost::python::return_by_value>());
+  boost::python::class_<Prismata::GUIEngine, boost::noncopyable>("PrismataGUIEngine")
+	  .def("run", &Prismata::GUIEngine::run);
+  typedef std::map<std::string, std::shared_ptr<Prismata::Player>> PrismataPlayerMap;
+  boost::python::class_<PrismataPlayerMap>("PrismataPlayerMap")
+	  .def(boost::python::map_indexing_suite<PrismataPlayerMap>());
+  boost::python::class_<Prismata::AIParameters, boost::noncopyable>("PrismataAIParameters", boost::python::no_init)
+	  .def_readonly("playerMap", &Prismata::AIParameters::_playerMap);
   
 }

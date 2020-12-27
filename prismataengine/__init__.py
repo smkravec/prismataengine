@@ -1,5 +1,6 @@
 import enum
 import numpy
+from logger import logger
 from os import environ
 from functools import lru_cache
 from _prismataengine import * #Imports all exported methods from boost
@@ -23,12 +24,12 @@ def cslice(array, start, width):
     return array[start:start+width], start+width
 
 class GameState():
-    def __init__(self, game_string, cards=11, player1=None, player2=None, ai_json=None):
+    def __init__(self, game_state, cards=11, player1=None, player2=None, ai_json=None, one_hot=False):
         if cards not in (4, 11):
             raise Exception("cards parameter must be set to 4 or 11")
-        self._state = p.jsonStrToGameState(game_string)
+        self._state = p.jsonStrToGameState(game_state) if type(game_state)==str else game_state
         if type(self._state) is not p.PrismataGameState:
-            raise Exception("Failed to load PrismataGameState from JSON")
+            raise Exception(f"Failed to load PrismataGameState from JSON (type(_state) = {type(self._state)})")
         if ai_json:
             p.initAI(p.ai_json)
         if type(player1) is str: #String values indicate pulling existing AI players from "PRISMATA_INIT_AI_JSON_PATH"
@@ -51,20 +52,40 @@ class GameState():
         self._toVectorNeedsUpdate = True
         self._move = p.Move()
         self._cards = p.CardVector() #std::vector of Cards
-        self.abstract_actions_available_size = 14 if cards == 4 else 32
-        self.state_size = 30 if cards == 4 else 82
+        if cards==4 and not one_hot:
+            self.abstract_actions_available_size = 14
+            self.state_size = 30
+            self._ie = numpy.zeros(self.state_size, dtype=numpy.uint16)
+            self.toVector = self.toVector4
+        elif cards==4 and one_hot:
+            self.abstract_actions_available_size = 14
+            self.state_size = 640+30
+            self._ie = numpy.zeros(30, dtype=numpy.uint16)
+            self._oh = numpy.zeros(self.state_size, dtype=numpy.uint16)
+            self.toVector = self.toVectorOH4
+        elif cards==11 and not one_hot:
+            self.abstract_actions_available_size = 32
+            self.state_size = 82
+            self._ie = numpy.zeros(self.state_size, dtype=numpy.uint16)
+            self.toVector = self.toVector11
+        elif cards==11 and one_hot:
+            self.abstract_actions_available_size = 32
+            self.state_size = 1160+82
+            self._ie = numpy.zeros(82, dtype=numpy.uint16)
+            self._oh = numpy.zeros(self.state_size, dtype=numpy.uint16)
+            self.toVector = self.toVectorOH11
+        else:
+            raise ValueError('Cards invalid. Implemented: 4 and 11')
         self._abactions = numpy.zeros(self.abstract_actions_available_size, dtype=numpy.uintp) #Array of pointers to Prismata::Actions
-        self._ie = numpy.zeros(self.state_size, dtype=numpy.uint16)
         self._acvec = numpy.zeros(self.abstract_actions_available_size, dtype=numpy.bool) #Actual boolean vector encoding legal abstract actions
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
         #Agents from upstream don't need abstract actions
         self.abstract_actions_list_disabled = player1 and player2 and type(player1) is p.PrismataPlayer and type(player2) is p.PrismataPlayer
         if not self.abstract_actions_list_disabled:
             self._abactions_list = [p.AbstractAction.values[i] for i in range(self.abstract_actions_available_size) if self._acvec[i]]
-        self.toVector = self.toVector4 if cards == 4 else self.toVector11
         self.annotate  = self.annotate4 if cards == 4 else self.annotate11
         if __debug__:
-            print("Initialized GameState")
+            logger.debug("Initialized GameState")
             
     '''
     Virtual method, see __init__
@@ -116,29 +137,30 @@ class GameState():
     def step(self):
         saveActivePlayer = self.activePlayer
         #PrismataPlayers do whole moves which are sequences of actions taken within a turn
-        if self._players[self.activePlayer] and type(self._players[self.activePlayer]) == p.PrismataPlayer: 
+        if self._players[self.activePlayer] and (type(self._players[self.activePlayer]) in [p.PrismataPlayer, p.PrismataPlayerPython] or hasattr(self._players[self.activePlayer], "getMove")):
             while saveActivePlayer == self.activePlayer and not self.isGameOver():
                 self._move.clear()
                 p.getMove(self._players[self.activePlayer], self._state, self._move)
                 if __debug__:
-                    print(f"Player {1+self.activePlayer} Move: {self._move}")
+                    logger.debug(f"Player {1+self.activePlayer} Move: {self._move}")
                 self.doMove(self._move)
             return True
         elif self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getAction"):
             #Other agents we assume have just an action method 
             if __debug__:
-                print(f"Player {1+self.activePlayer} Move: ", end="")
+                logger.debug(f"Player {1+self.activePlayer} Move: ", end="")
             while saveActivePlayer == self.activePlayer and not self.isGameOver():
                 action = self._players[self.activePlayer].getAction(self)
                 if __debug__:
-                    print(f"{action}<{type(action).__name__}>, ", end="")
+                    logger.debug(f"{action}<{type(action).__name__}>, ", end="")
                 self.doAction(action)
             if __debug__:
-                print("")
+                logger.debug("")
             return True
         else:
-            #Couldn't do an action, dump debug info
-            print(type(self._players[self.activePlayer]), dir(self._players[self.activePlayer]), self._players[self.activePlayer])
+            if __debug__:
+                logger.error("Couldn't do an action, dump debug info")
+                logger.error(f"{type(self._players[self.activePlayer])}, {dir(self._players[self.activePlayer])}, {self._players[self.activePlayer]}")
             return False
 
     def doMove(self, move):
@@ -260,12 +282,25 @@ class GameState():
         self._ie[0] = self.activePlayer
         self._ie[1] = self._state.activePhase
         p.countResources4(self._state, self.activePlayer, 2, self._ie) #The number is an offset beginning
-        p.countCards4(self._state, self.activePlayer, 7, self._ie)
+        p.countCards4(self._state, self.activePlayer, 5, self._ie)
         p.countResources4(self._state, self.inactivePlayer, 16, self._ie)
-        p.countCards4(self._state, self.inactivePlayer, 21, self._ie)
+        p.countCards4(self._state, self.inactivePlayer, 19, self._ie)
         self._toVectorNeedsUpdate = False
         return self._ie    
         
+    def toVectorOH4(self):
+        if not self._toVectorNeedsUpdate:
+            return self._oh
+        self._ie[0] = self.activePlayer
+        self._ie[1] = self._state.activePhase
+        p.countResources4(self._state, self.activePlayer, 2, self._ie)
+        p.countCards4(self._state, self.activePlayer, 5, self._ie)
+        p.countResources4(self._state, self.inactivePlayer, 16, self._ie)
+        p.countCards4(self._state, self.inactivePlayer, 19, self._ie)
+        p.oneHot4(self._ie, self._oh)
+        self._toVectorNeedsUpdate = False
+        return self._oh
+
     def toVector11(self):
         if not self._toVectorNeedsUpdate:
             return self._ie
@@ -278,6 +313,18 @@ class GameState():
         self._toVectorNeedsUpdate = False
         return self._ie
 
+    def toVectorOH11(self):
+        if not self._toVectorNeedsUpdate:
+            return self._oh
+        self._ie[0] = self.activePlayer
+        self._ie[1] = self._state.activePhase
+        p.countResources11(self._state, self.activePlayer, 2, self._ie)
+        p.countCards11(self._state, self.activePlayer, 9, self._ie)
+        p.countResources11(self._state, self.inactivePlayer, 42, self._ie)
+        p.countCards11(self._state, self.inactivePlayer, 49, self._ie)
+        p.oneHot11(self._ie, self._oh)
+        self._toVectorNeedsUpdate = False
+        return self._oh
+
     def __iter__(self):
         return iter(self.toVector())
-

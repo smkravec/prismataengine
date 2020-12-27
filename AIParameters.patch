@@ -1,0 +1,29 @@
+diff --git a/source/ai/AIParameters.h b/source/ai/AIParameters.h
+index 74e91ac..6b060de 100644
+--- a/source/ai/AIParameters.h
++++ b/source/ai/AIParameters.h
+@@ -28,7 +28,6 @@ class AIParameters
+     std::vector<std::string>                _buyLimitKeyNames;
+ 
+     std::map<std::string, PPPtr>            _partialPlayerMap[2];
+-    std::map<std::string, PlayerPtr>        _playerMap[2];
+     std::map<std::string, MoveIteratorPtr>  _moveIteratorMap[2];
+     std::map<std::string, OpeningBook>      _openingBookMap[2];
+     std::map<std::string, CardFilter>       _cardFilters;
+@@ -36,7 +35,6 @@ class AIParameters
+     std::map<std::string, GameState>        _stateMap;
+     std::map<std::string, DominionState>    _dominionStates;
+ 
+-    std::vector<std::string>                _playerNames;
+     std::vector<std::string>                _partialPlayerNames;
+     std::vector<std::string>                _stateNames;
+ 
+@@ -68,6 +66,8 @@ class AIParameters
+ 
+ public:
+ 
++    std::vector<std::string>                _playerNames;
++    std::map<std::string, PlayerPtr>        _playerMap[2];
+     static AIParameters & Instance();
+ 
+     void                parseJSONValue(const rapidjson::Value & rootValue);

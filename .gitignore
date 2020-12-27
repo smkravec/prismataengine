@@ -7,3 +7,4 @@ prismataengine/*.ipynb
 prismataengine/.ipynn_checkpoints
 .ipynb_checkpoints
 test*.py
+.*.swp
