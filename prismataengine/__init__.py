@@ -126,9 +126,11 @@ class GameState():
     #Accepts a variety of types and ways of referring to an abstract action
     def coerceAction(self, action):
         if type(action) == int:
-            return self._abactions[action]
+            return p.unsafeIntToAction(self._abactions[action])
+        elif type(action) == numpy.uint64:
+            return p.unsafeIntToAction(self._abactions[int(action)])
         elif type(action) == p.AbstractAction:
-            return self._abactions[int(action)]
+            return p.unsafeIntToAction(self._abactions[int(action)])
         elif type(action) == p.PrismataAction:
             return action
         else:
