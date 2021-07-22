@@ -18,6 +18,10 @@ if "PRISMATA_INIT_AI_JSON_PATH" in environ:
     if environ.get("PRISMATA_INIT_AI_JSON_PATH", None):
         with open(environ.get("PRISMATA_INIT_AI_JSON_PATH")) as f:
             p.initAI(f.read())
+else:
+    with resources.path(__name__, 'AI_config.txt') as path:
+        with open(path) as f:
+            p.initAI(f.read())
 
 #For creating annotation of state
 def cslice(array, start, width):
@@ -47,7 +51,7 @@ class GameState():
         self._players = (player1, player2)
         self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
-        self.endPhase = p.PrismataAction(self.activePlayer, p.ActionType.END_PHASE, 0) 
+        self.endPhase = p.PrismataAction(self.activePlayer, p.ActionType.END_PHASE, 0)
         self._actions = p.PrismataActions() #std::vector of PrismataActions
         self._toVectorNeedsUpdate = True
         self._move = p.Move()
@@ -77,7 +81,7 @@ class GameState():
         else:
             raise ValueError('Cards invalid. Implemented: 4 and 11')
         self._abactions = numpy.zeros(self.abstract_actions_available_size, dtype=numpy.uintp) #Array of pointers to Prismata::Actions
-        self._acvec = numpy.zeros(self.abstract_actions_available_size, dtype=numpy.bool) #Actual boolean vector encoding legal abstract actions
+        self._acvec = numpy.zeros(self.abstract_actions_available_size, dtype=numpy.bool_) #Actual boolean vector encoding legal abstract actions
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
         #Agents from upstream don't need abstract actions
         self.abstract_actions_list_disabled = player1 and player2 and type(player1) is p.PrismataPlayer and type(player2) is p.PrismataPlayer
@@ -86,7 +90,7 @@ class GameState():
         self.annotate  = self.annotate4 if cards == 4 else self.annotate11
         if __debug__:
             logger.debug("Initialized GameState")
-            
+
     '''
     Virtual method, see __init__
     def toVector(self):
@@ -122,7 +126,7 @@ class GameState():
 
     def getAction(self, abstractaction):
         return self._abactions[abstractaction]
-    
+
     #Accepts a variety of types and ways of referring to an abstract action
     def coerceAction(self, action):
         if type(action) == int:
@@ -148,13 +152,13 @@ class GameState():
                 self.doMove(self._move)
             return True
         elif self._players[self.activePlayer] and hasattr(self._players[self.activePlayer], "getAction"):
-            #Other agents we assume have just an action method 
+            #Other agents we assume have just an action method
             if __debug__:
                 logger.debug(f"Player {1+self.activePlayer} Move: ", end="")
             while saveActivePlayer == self.activePlayer and not self.isGameOver():
                 action = self._players[self.activePlayer].getAction(self)
                 if __debug__:
-                    logger.debug(f"{action}<{type(action).__name__}>, ", end="")
+                    logger.debug(f"{action}<{type(action).__name__}>, ", end="",flush=True)
                 self.doAction(action)
             if __debug__:
                 logger.debug("")
@@ -169,11 +173,11 @@ class GameState():
         self._state.doMove(move)
         self._toVectorNeedsUpdate = True
         #Reset active and inactive players
-        self.inactivePlayer = self._state.inactivePlayer 
+        self.inactivePlayer = self._state.inactivePlayer
         self.activePlayer = self._state.activePlayer
         #Create new endPhase action with new active player
         self.endPhase = p.PrismataAction(self.activePlayer, p.ActionType.END_PHASE, 0)
-        self._acvec.fill(False) #Clear list of abstract actions 
+        self._acvec.fill(False) #Clear list of abstract actions
         self._abactions.fill(0) #Reset list of abstractAction offsets that map to prismataAction pointers
         self._state.generateLegalActionsVector(self._actions, self._acvec, self._abactions, self.endPhase)
         if not self.abstract_actions_list_disabled:
@@ -277,7 +281,7 @@ class GameState():
         stateStruct[player]["cards"]["Forcefield"], i = cslice(state, i, 2)
         stateStruct[player]["cards"]["Gauss Cannon"], i = cslice(state, i, 6)
         return stateStruct
- 
+
     def toVector4(self):
         if not self._toVectorNeedsUpdate:
             return self._ie
@@ -288,8 +292,8 @@ class GameState():
         p.countResources4(self._state, self.inactivePlayer, 16, self._ie)
         p.countCards4(self._state, self.inactivePlayer, 19, self._ie)
         self._toVectorNeedsUpdate = False
-        return self._ie    
-        
+        return self._ie
+
     def toVectorOH4(self):
         if not self._toVectorNeedsUpdate:
             return self._oh
