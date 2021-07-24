@@ -10,7 +10,7 @@ void Player_Python::getMove_default(const Prismata::GameState & state, Prismata:
 {
     PRISMATA_ASSERT(0, "Prismata::Engine::Player_Python::getMove_default: Method is a stub, please override.");
 }
-std::string Player_Python::getDescription() 
+std::string Player_Python::getDescription()
 {
     return m_description;
 }
@@ -97,7 +97,7 @@ void copyResources4(Prismata::GameState &g, const Prismata::PlayerID p,
                    int offset, boost::python::numpy::ndarray &n) {
 //Converts integer/logical offset to a memory offset and then adds it to relative
   uint16_t *state =
-      reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset); 
+      reinterpret_cast<uint16_t *>(n.get_data() + sizeof(uint16_t) * offset);
   const Prismata::Resources &r = g.getResources(p);
   state[0] = r.amountOf(Prismata::Resources::Gold); //Starts at zero because of our pointer logic and avoids seperate additions
   state[1] = r.amountOf(Prismata::Resources::Energy);
@@ -135,7 +135,7 @@ for (int l = 0; l < 640+30; l++) {
     }
 }
 
-    
+
 void oneHot11(boost::python::numpy::ndarray &in, boost::python::numpy::ndarray &out){
  uint16_t *smol =
       reinterpret_cast<uint16_t *>(in.get_data());
@@ -156,7 +156,7 @@ for (int l = 0; l < 1160+82; l++) {
 }
 }; // namespace GameState
 
-namespace Card { 
+namespace Card {
 std::string toJson(const Prismata::Card &c) { return c.toJSONString(true); }
 static inline unsigned int getBin4(const Prismata::Card &c) { //Construct bin index in our lookup table from the card
   return (c.getType().getID() << 2) | (c.isUnderConstruction() << 1) |
@@ -306,7 +306,7 @@ BOOST_PYTHON_MODULE(_prismataengine) {
   boost::python::def("jsonStrToGameState", &GameState::fromJson,
                      boost::python::return_value_policy<
                          boost::python::reference_existing_object>());
-                         
+
   boost::python::def("getAIPlayer", &playerFactory,
                      boost::python::return_value_policy<
                          boost::python::return_by_value>());
@@ -326,7 +326,7 @@ BOOST_PYTHON_MODULE(_prismataengine) {
   boost::python::def("unsafeIntToAction", &GameState::unsafeIntToAction,
            boost::python::return_value_policy<
                boost::python::reference_existing_object>());
-  
+
   boost::python::enum_<Prismata::ActionID>("ActionType")
       .value("BUY", Prismata::ActionTypes::BUY)
       .value("END_PHASE", Prismata::ActionTypes::END_PHASE)
@@ -367,7 +367,7 @@ BOOST_PYTHON_MODULE(_prismataengine) {
       .value("BuyEngineer", Action::Abstract::BuyEngineer)
       .value("BuyDrone", Action::Abstract::BuyDrone)
       .value("BuySteelsplitter", Action::Abstract::BuySteelsplitter)
-      .value("BuyBlastforge", Action::Abstract::BuyBlastforge)  
+      .value("BuyBlastforge", Action::Abstract::BuyBlastforge)
       .value("BuyAnimus", Action::Abstract::BuyAnimus)
       .value("BuyConduit", Action::Abstract::BuyConduit)
       .value("BuyWall", Action::Abstract::BuyWall)
@@ -490,8 +490,8 @@ BOOST_PYTHON_MODULE(_prismataengine) {
            static_cast<void (Prismata::GameState::*)(const Prismata::Card &)>(
                &Prismata::GameState::addCard))
       .def("beginTurn", &Prismata::GameState::beginTurn)
-      .def("doAction", &GameState::doActionInt)
-      // .def("doAction", &Prismata::GameState::doAction)
+      //.def("doAction", &GameState::doActionInt)
+      .def("doAction", &Prismata::GameState::doAction)
       .def("doMove", &Prismata::GameState::doMove)
       .def("generateLegalActions", &Prismata::GameState::generateLegalActions)
       .def("generateLegalActionsVector", &GameState::generateLegalActions)
@@ -531,5 +531,5 @@ BOOST_PYTHON_MODULE(_prismataengine) {
 	  .def(boost::python::map_indexing_suite<PrismataPlayerMap>());
   boost::python::class_<Prismata::AIParameters, boost::noncopyable>("PrismataAIParameters", boost::python::no_init)
 	  .def_readonly("playerMap", &Prismata::AIParameters::_playerMap);
-  
+
 }
