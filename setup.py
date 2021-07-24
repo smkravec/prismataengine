@@ -12,12 +12,12 @@ if sys.platform == "win32" :
     libraries=["boost_python-mgw"]
     library_dirs=['C:/Boost/lib']
 else :
-    include_dirs = ["/usr/include/boost-1_32","."]
-    libraries=["boost_python3", "boost_numpy3"]
+    include_dirs = ["/usr/include/boost","."]
+    libraries=["boost_python38", "boost_numpy38"]
     library_dirs=['/usr/local/lib']
 
-extra_compile_args = ["-O3", "-std=c++17", "-flto"]
-extra_link_args = ["-O3", "-flto", "-pthread", "-lsfml-graphics", "-lsfml-window", "-lsfml-system", "-lsfml-audio"]
+extra_compile_args = ["-O3", "-g", "-std=c++17", "-flto"]
+extra_link_args = ["-O3","-g",  "-flto", "-pthread", "-lsfml-graphics", "-lsfml-window", "-lsfml-system", "-lsfml-audio"]
 
 
 include_dirs.extend(["PrismataAI/source", "PrismataAI/source/engine", "PrismataAI/source/gui", "PrismataAI/source/ai", "PrismataAI/source/rapidjson"])
@@ -59,5 +59,5 @@ setup (name = 'prismataengine',
            "Operating System :: OS Independent",
            ],
        python_requires='>=3.6',
-       package_data={'prismataengine': ['cardLibrary.jso']},
+       package_data={'prismataengine': ['cardLibrary.jso', 'AI_config.txt']},
        )

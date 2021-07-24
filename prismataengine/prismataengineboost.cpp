@@ -29,9 +29,12 @@ Prismata::GameState *fromJson(const std::string &json_str) {
   return new Prismata::GameState(document);
 }
 Prismata::Action & unsafeIntToAction(uintptr_t a) {
+	std::cout << a << std::endl;
   return *(reinterpret_cast<Prismata::Action*>(a));
 }
 bool doActionInt(Prismata::GameState &g, uintptr_t a) {
+	std::cout << a << std::endl;
+	std::cout << Action::stringify(unsafeIntToAction(a)) << std::endl;
   return g.doAction(unsafeIntToAction(a));
 }
 Prismata::CardVector &getPlayerCards(const Prismata::GameState &g,
